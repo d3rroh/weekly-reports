@@ -52,6 +52,8 @@ jobs:
       - run: pip install -r requirements.txt
       - run: python manage.py check
       - run: python manage.py makemigrations --check --dry-run
+      # DEBUG is off, so templates resolve static files via the WhiteNoise manifest.
+      - run: python manage.py collectstatic --noinput
       - run: python manage.py test apps --noinput
 
   image:
