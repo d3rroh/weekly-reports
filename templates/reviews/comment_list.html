@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head"><div><h1>Comments</h1><div class="sub">Comments across all reports you can access. Add comments from a report's Comments tab.</div></div></div>
+<form method="get" class="filters card card-pad">
+  <div class="field"><label for="f-cat">Category</label><select id="f-cat" name="category"><option value="">All categories</option>{% for v, l in categories %}<option value="{{ v }}"{% if v == category %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="f-vis">Visibility</label><select id="f-vis" name="visibility"><option value="">All</option>{% for v, l in visibilities %}<option value="{{ v }}"{% if v == visibility %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+  <div class="field"><label for="f-rep">Report</label><select id="f-rep" name="report"><option value="">All reports</option>{% for r in reports %}<option value="{{ r.code }}"{% if r.code == report %} selected{% endif %}>{{ r.period.label }}</option>{% endfor %}</select></div>
+  <button type="submit" class="btn">Filter</button>
+</form>
+{% for cm in page %}{% include "partials/comment.html" with show_report=True %}{% empty %}<div class="card empty"><p>No comments match these filters.</p></div>{% endfor %}
+{% include "partials/pager.html" %}
+{% endblock %}

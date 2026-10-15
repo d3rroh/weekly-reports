@@ -1,0 +1,35 @@
+<div class="follow-through" id="follow-through">
+  <h3>Follow-through on previous commitments</h3>
+  {% if prev_commitments %}
+    <p class="muted">Outcomes committed in the previous report, plus older outcomes that are still open. Updates are recorded in each commitment's history. Outcomes are never marked complete automatically.</p>
+    {% for item in prev_commitments %}{% with c=item.obj f=item.form %}
+    <div class="sub-block" id="commitment-{{ c.pk }}">
+      <div class="sub-block-head">
+        <span><a href="{% url 'reviews:commitment_detail' c.pk %}">{{ c.description }}</a></span>
+        <span class="btn-row"><span class="badge badge-{{ c.status }}">{{ c.get_status_display }}</span>{% if item.overdue %}<span class="badge badge-overdue">Overdue</span>{% endif %}{% if item.comment_count %}<a class="count-pill" href="?category=commitments#comments">{% include "partials/icon.html" with name="comment" %}{{ item.comment_count }}</a>{% endif %}</span>
+      </div>
+      <div class="muted">From {{ c.source_review.period.label }} · Success criteria: {{ c.success_criteria|default:"—" }} · Due {{ c.due_date|date:"j M Y" }}{% if c.owner %} · Owner: {{ c.owner }}{% endif %}</div>
+      {% if user.may_edit_reports %}
+      <div class="form-grid cp-grid">
+        <div class="field"><label for="{{ f.status.id_for_label }}">Status</label><select name="{{ f.status.html_name }}" id="{{ f.status.id_for_label }}" form="cp-form-{{ c.pk }}">{% for v, l in f.fields.status.choices %}<option value="{{ v }}"{% if v == c.status %} selected{% endif %}>{{ l }}</option>{% endfor %}</select></div>
+        <div class="field"><label for="{{ f.completed_on.id_for_label }}">Completion date</label><input type="date" name="{{ f.completed_on.html_name }}" id="{{ f.completed_on.id_for_label }}" value="{{ c.completed_on|date:'Y-m-d' }}" form="cp-form-{{ c.pk }}"></div>
+        <div class="field"><label for="{{ f.progress_notes.id_for_label }}">Progress notes</label><textarea rows="2" name="{{ f.progress_notes.html_name }}" id="{{ f.progress_notes.id_for_label }}" form="cp-form-{{ c.pk }}">{{ c.progress_notes }}</textarea></div>
+        <div class="field"><label for="{{ f.completion_evidence.id_for_label }}">Completion evidence</label><textarea rows="2" name="{{ f.completion_evidence.html_name }}" id="{{ f.completion_evidence.id_for_label }}" form="cp-form-{{ c.pk }}">{{ c.completion_evidence }}</textarea><div class="help">Required to mark Completed.</div></div>
+        <div class="field full"><label for="{{ f.incomplete_explanation.id_for_label }}">Explanation if incomplete or blocked</label><textarea rows="2" name="{{ f.incomplete_explanation.html_name }}" id="{{ f.incomplete_explanation.id_for_label }}" form="cp-form-{{ c.pk }}">{{ c.incomplete_explanation }}</textarea></div>
+        <div class="field full"><label for="{{ f.note.id_for_label }}">Update note (recorded in history)</label><input type="text" name="{{ f.note.html_name }}" id="{{ f.note.id_for_label }}" form="cp-form-{{ c.pk }}" maxlength="2000"></div>
+      </div>
+      <button type="submit" class="btn btn-sm" form="cp-form-{{ c.pk }}">Update outcome</button>
+      {% else %}
+        {% if c.progress_notes %}<div class="pre">{{ c.progress_notes }}</div>{% endif %}
+      {% endif %}
+    </div>
+    {% endwith %}{% endfor %}
+    <div class="btn-row ack-row">
+      <span class="tick{% if review.previous_commitments_reviewed_at %} done{% endif %}">{% if review.previous_commitments_reviewed_at %}✓{% endif %}</span>
+      {% if review.previous_commitments_reviewed_at %}<span>Previous commitments reviewed {{ review.previous_commitments_reviewed_at|date:"j M, H:i" }}</span>
+      {% elif can_edit %}<button type="submit" form="ack-prev" class="btn btn-sm">Mark previous commitments reviewed</button>{% endif %}
+    </div>
+  {% else %}
+    <p class="muted">No commitments from previous reports to follow up.</p>
+  {% endif %}
+</div>

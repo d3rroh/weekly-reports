@@ -1,0 +1,17 @@
+{% load wor_format %}
+<table class="ptable">
+  <thead><tr><th>Metric</th><th class="num">Previous ({{ previous_bounds.start|date:"j M" }}–{{ previous_bounds.end|date:"j M" }})</th><th class="num">Current ({{ period.start_date|date:"j M" }}–{{ period.end_date|date:"j M" }})</th><th class="num">Change</th><th class="num">Relative</th><th>Trend</th></tr></thead>
+  <tbody>
+  {% for row in comparisons %}{% if row.c.metric.key in keys %}{% with c=row.c %}
+  <tr>
+    <td>{{ c.metric.label }}</td>
+    <td class="num">{% if c.previous is None %}{% if c.previous_exists %}Not entered{% else %}No previous data{% endif %}{% else %}{{ c.previous|metric_value:c.metric.unit }}{% endif %}</td>
+    <td class="num">{% if c.current is None %}Not entered{% else %}{{ c.current|metric_value:c.metric.unit }}{% endif %}</td>
+    <td class="num">{{ c.absolute_change|signed:c.change_unit }}</td>
+    <td class="num">{{ c.relative_change_pct|signed:"%" }}</td>
+    <td><span class="trend trend-{{ c.trend }}">{% if c.direction == "up" %}▲ {% elif c.direction == "down" %}▼ {% endif %}{{ c.trend_label }}</span></td>
+  </tr>
+  {% endwith %}{% endif %}{% endfor %}
+  </tbody>
+</table>
+{% for row in comparisons %}{% if row.c.metric.key in keys %}{% for cm in row.comments %}<div class="mgmt-comment"><strong>{{ row.c.metric.short_label }}:</strong> <span class="pre">{{ cm.text }}</span> <span class="muted">— {{ cm.author.display_name }}</span></div>{% endfor %}{% endif %}{% endfor %}

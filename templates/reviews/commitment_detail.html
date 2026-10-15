@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="breadcrumbs"><a href="{% url 'reviews:commitments' %}">Commitments Tracker</a> /</div>
+<div class="page-head"><div><h1>{{ c.description }}</h1>
+  <div class="sub"><span class="badge badge-{{ c.status }}">{{ c.get_status_display }}</span>{% if overdue %} <span class="badge badge-overdue">Overdue</span>{% endif %} · Outcome {{ c.position }} from <a href="{% url 'reviews:edit' c.source_review.code %}">{{ c.source_review.period.label }}</a> · Target period {{ c.target_period.label }} · Due {{ c.due_date|date:"j M Y" }}</div></div></div>
+<div class="split">
+<div class="stack">
+  <section class="card card-pad">
+    <h3>Measurable success criteria</h3><div class="pre">{{ c.success_criteria|default:"—" }}</div>
+    <h3 class="mt">Owner</h3><p>{{ c.owner|default:"—" }}</p>
+    <h3>Progress notes</h3><div class="pre">{{ c.progress_notes|default:"—" }}</div>
+    <h3 class="mt">Explanation if incomplete</h3><div class="pre">{{ c.incomplete_explanation|default:"—" }}</div>
+    <h3 class="mt">Completion evidence</h3><div class="pre">{{ c.completion_evidence|default:"—" }}</div>
+    {% if c.completed_on %}<p class="mt">Completed on {{ c.completed_on|date:"j M Y" }}</p>{% endif %}
+  </section>
+  <section class="card">
+    <div class="card-head"><h3>Status history</h3></div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>When</th><th>Change</th><th>Note</th><th>By</th><th>Report</th></tr></thead>
+      <tbody>{% for h in history %}<tr><td>{{ h.changed_at|date:"j M Y, H:i" }}</td><td>{{ h.from_label }} → {{ h.to_label }}</td><td class="pre">{{ h.note }}</td><td>{{ h.changed_by.display_name }}</td><td>{% if h.review %}{{ h.review.period.label }}{% endif %}</td></tr>{% endfor %}</tbody>
+    </table></div>
+  </section>
+  {% if comments %}<section class="card card-pad"><h3>Comments</h3>{% for cm in comments %}{% include "partials/comment.html" %}{% endfor %}</section>{% endif %}
+</div>
+{% if can_update %}
+<section class="card">
+  <div class="card-head"><h3>Update progress</h3></div>
+  <div class="card-body">
+    <form method="post" action="{% url 'reviews:commitment_update' c.pk %}">{% csrf_token %}
+      {% for field in form %}{% include "partials/field.html" %}{% endfor %}
+      <button type="submit" class="btn btn-primary">Save update</button>
+    </form>
+  </div>
+</section>
+{% endif %}
+</div>
+{% endblock %}

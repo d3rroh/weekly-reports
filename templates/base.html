@@ -1,0 +1,85 @@
+{% load static wor_format %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% if page_title %}{{ page_title }} · {% endif %}{{ APP_NAME }}</title>
+  <link rel="icon" href="{% static 'favicon.svg' %}" type="image/svg+xml">
+  <link rel="preload" href="{% static 'fonts/ibm-plex-sans-latin-400-normal.woff2' %}" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="{% static 'fonts/source-serif-4-latin-700-normal.woff2' %}" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+  {% block head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+{% block body %}
+<div class="app">
+  <aside class="sidebar" id="sidebar" aria-label="Main navigation">
+    <div class="brand">
+      <span class="brand-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 17l5-6 4 4 7-9"/></svg></span>
+      <div>
+        <div class="brand-name">{{ APP_NAME }}</div>
+        {% if app_settings.organisation_name %}<div class="brand-org">{{ app_settings.organisation_name }}</div>{% endif %}
+      </div>
+    </div>
+
+    {% with sp=sidebar_period %}{% if sp %}
+    <a class="side-period" href="{% if sp.review %}{% url 'reviews:edit' sp.review.code %}{% elif user.may_edit_reports %}{% url 'reviews:new' %}{% else %}{% url 'dashboard' %}{% endif %}">
+      <span class="eyebrow">Presenting {{ sp.bounds.presentation_date|date:"D j M" }}</span>
+      <div class="when">{{ sp.label }}</div>
+      <div class="row"><span>{% if sp.review %}{{ sp.review.get_status_display }}{% else %}Not started{% endif %}</span><span class="figure">{{ sp.percent }}%</span></div>
+      <progress max="100" value="{{ sp.percent }}">{{ sp.percent }}%</progress>
+    </a>
+    {% endif %}{% endwith %}
+
+    {% with n=nav_active %}
+    <nav class="nav-group">
+      <div class="nav-label">Reporting</div>
+      <ul class="nav">
+        <li><a href="{% url 'dashboard' %}" class="{% if n == 'dashboard' %}active{% endif %}">{% include "partials/icon.html" with name="dashboard" %}Overview Dashboard</a></li>
+        <li><a href="{% url 'reviews:list' %}" class="{% if n == 'list' or n == 'edit' or n == 'revision' %}active{% endif %}">{% include "partials/icon.html" with name="reviews" %}Weekly Reviews</a></li>
+        {% if user.may_edit_reports %}<li><a href="{% url 'reviews:new' %}" class="{% if n == 'new' %}active{% endif %}">{% include "partials/icon.html" with name="plus" %}New Weekly Review</a></li>{% endif %}
+        <li><a href="{% url 'reviews:commitments' %}" class="{% if n == 'commitments' or n == 'commitment_detail' %}active{% endif %}">{% include "partials/icon.html" with name="target" %}Commitments Tracker</a></li>
+        <li><a href="{% url 'reviews:comments' %}" class="{% if n == 'comments' or n == 'comment_edit' %}active{% endif %}">{% include "partials/icon.html" with name="comment" %}Comments</a></li>
+      </ul>
+      <div class="nav-label">Analysis</div>
+      <ul class="nav">
+        <li><a href="{% url 'reviews:history' %}" class="{% if n == 'history' or n == 'compare' %}active{% endif %}">{% include "partials/icon.html" with name="archive" %}Historical Reports</a></li>
+        <li><a href="{% url 'reviews:trends' %}" class="{% if n == 'trends' %}active{% endif %}">{% include "partials/icon.html" with name="trend" %}Performance Trends</a></li>
+      </ul>
+      <div class="nav-label">Administration</div>
+      <ul class="nav">
+        <li><a href="{% url 'settings' %}" class="{% if n == 'settings' or n == 'audit_log' %}active{% endif %}">{% include "partials/icon.html" with name="settings" %}Settings</a></li>
+        {% if user.is_app_admin %}<li><a href="{% url 'accounts:user_list' %}" class="{% if n == 'user_list' or n == 'user_edit' or n == 'user_create' %}active{% endif %}">{% include "partials/icon.html" with name="users" %}User Management</a></li>{% endif %}
+      </ul>
+    </nav>
+    {% endwith %}
+
+    <div class="sidebar-foot">
+      <div class="who">
+        <span class="avatar" aria-hidden="true">{{ user|initials }}</span>
+        <div><div class="who-name">{{ user.display_name }}</div><div class="who-role">{{ user.get_role_display }}</div></div>
+      </div>
+      <a href="{% url 'accounts:password_change' %}">Change password</a> ·
+      <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button type="submit" class="linklike">Sign out</button></form>
+    </div>
+  </aside>
+  <div class="main">
+    <div class="topbar">
+      <span>{{ APP_NAME }}</span>
+      <button type="button" data-nav-toggle aria-controls="sidebar" aria-expanded="false">Menu</button>
+    </div>
+    <main class="content" id="content">
+      {% if messages %}
+      <ul class="messages" role="status">
+        {% for message in messages %}<li class="msg-{{ message.tags }}">{{ message }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+</div>
+{% endblock %}
+<script src="{% static 'js/app.js' %}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

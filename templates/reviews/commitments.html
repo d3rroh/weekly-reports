@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load wor_format %}
+{% block content %}
+<div class="page-head"><div><h1>Commitments Tracker</h1><div class="sub">The three outcomes defined in Question 10 of each report, with status history.</div></div></div>
+<div class="grid grid-4 tracker-stats">
+  {% for v, l in statuses %}<a class="card metric" href="?status={{ v }}"><div class="metric-label">{{ l }}</div><div class="metric-value">{{ counts|get_item:v }}</div></a>{% endfor %}
+</div>
+<div class="filters btn-row">
+  <a class="btn btn-sm{% if view == 'open' and not status %} btn-primary{% endif %}" href="?view=open">Open</a>
+  <a class="btn btn-sm{% if view == 'all' and not status %} btn-primary{% endif %}" href="?view=all">All</a>
+  {% for v, l in statuses %}<a class="btn btn-sm{% if v == status %} btn-primary{% endif %}" href="?status={{ v }}">{{ l }}</a>{% endfor %}
+  {% if overdue %}<span class="badge badge-overdue">{{ overdue }} overdue</span>{% endif %}
+</div>
+<div class="card table-wrap">
+<table>
+  <thead><tr><th>Outcome</th><th>Success criteria</th><th>Owner</th><th>From report</th><th>Due</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for row in rows %}{% with c=row.c %}
+  <tr>
+    <td><a href="{% url 'reviews:commitment_detail' c.pk %}"><strong>{{ c.description }}</strong></a>{% if c.progress_notes %}<div class="muted">{{ c.progress_notes|truncatechars:120 }}</div>{% endif %}</td>
+    <td>{{ c.success_criteria|truncatechars:140 }}</td>
+    <td>{{ c.owner|default:"—" }}</td>
+    <td><a href="{% url 'reviews:edit' c.source_review.code %}">{{ c.source_review.period.label }}</a></td>
+    <td>{{ c.due_date|date:"j M Y" }}</td>
+    <td><span class="badge badge-{{ c.status }}">{{ c.get_status_display }}</span>{% if row.overdue %} <span class="badge badge-overdue">Overdue</span>{% endif %}{% if c.completed_on %}<div class="muted">Completed {{ c.completed_on|date:"j M" }}</div>{% endif %}</td>
+  </tr>
+  {% endwith %}{% empty %}
+  <tr><td colspan="6"><div class="empty">No commitments match. Outcomes are created from Question 10 of a weekly review.</div></td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

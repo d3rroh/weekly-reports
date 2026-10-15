@@ -1,0 +1,124 @@
+name: Container image
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: container-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  test:
+    name: Test (MySQL 8)
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root
+          MYSQL_DATABASE: weekly_outcomes
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pci-root"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DJANGO_SECRET_KEY: ci-only-not-secret
+      DB_ENGINE: mysql
+      DB_NAME: weekly_outcomes
+      DB_USER: root
+      DB_PASSWORD: ci-root
+      DB_HOST: 127.0.0.1
+      DB_PORT: "3306"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install system libraries
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends pkg-config default-libmysqlclient-dev
+      - run: pip install -r requirements.txt
+      - run: python manage.py check
+      - run: python manage.py makemigrations --check --dry-run
+      - run: python manage.py test apps --noinput
+
+  image:
+    name: Build and publish image
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build image for smoke test
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: weekly-outcomes:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test
+        run: |
+          docker run -d --name app -p 8000:8000 \
+            -e DJANGO_SECRET_KEY=ci-only-not-secret \
+            -e DB_ENGINE=sqlite -e SQLITE_NAME=/tmp/smoke.sqlite3 \
+            -e DJANGO_ALLOWED_HOSTS=localhost -e SECURE_COOKIES=false \
+            weekly-outcomes:ci
+          for _ in $(seq 1 30); do
+            if curl -fsS -o /dev/null http://localhost:8000/accounts/login/; then break; fi
+            sleep 1
+          done
+          curl -fsS http://localhost:8000/accounts/login/ | grep -q "Sign in"
+          curl -fsS -o /dev/null http://localhost:8000/static/css/app.css
+          docker logs app
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          provenance: true
+          sbom: true

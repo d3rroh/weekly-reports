@@ -1,0 +1,21 @@
+<article class="comment comment-{{ cm.visibility }}" id="comment-{{ cm.pk }}">
+  <div class="comment-meta">
+    <span class="badge badge-{{ cm.visibility }}">{{ cm.get_visibility_display }}</span>
+    <span>{{ cm.get_category_display }}</span>
+    <span>· {{ cm.target_label }}</span>
+    <span>· {{ cm.author.display_name }}</span>
+    <time datetime="{{ cm.created_at|date:'c' }}">· {{ cm.created_at|date:"j M Y, H:i" }}</time>
+    {% if cm.updated_at|date:"U" != cm.created_at|date:"U" %}<span title="Last updated {{ cm.updated_at|date:'j M Y, H:i' }}">· updated {{ cm.updated_at|date:"j M, H:i" }}</span>{% endif %}
+    {% if show_report %}<span>· <a href="{% url 'reviews:edit' cm.review.period.code %}#comments">{{ cm.review.period.label }}</a></span>{% endif %}
+  </div>
+  <div class="pre">{{ cm.text }}</div>
+  {% if can_modify %}
+  <div class="btn-row comment-actions">
+    <a class="btn btn-sm" href="{% url 'reviews:comment_edit' cm.pk %}">Edit</a>
+    <form method="post" action="{% url 'reviews:comment_delete' cm.pk %}" class="inline-form" data-confirm="Delete this comment? A copy is kept in the audit history.">
+      {% csrf_token %}<input type="hidden" name="confirm" value="1">
+      <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+    </form>
+  </div>
+  {% endif %}
+</article>

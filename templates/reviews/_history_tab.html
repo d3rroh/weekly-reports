@@ -1,0 +1,48 @@
+{% load wor_format %}
+<div class="split">
+<div class="stack">
+  <section class="card">
+    <div class="card-head"><h2>Previous report</h2>{% if history.previous %}<a href="{% url 'reviews:edit' history.previous.code %}">{{ history.previous.period.label }}</a>{% endif %}</div>
+    <div class="card-body">
+    {% if history.previous %}
+      <p>{% include "partials/status_badge.html" with r=history.previous %} <a href="{% url 'reviews:compare' %}?a={{ review.code }}&amp;b={{ history.previous.code }}">Full side-by-side comparison</a></p>
+      {% include "partials/comparison_table.html" with rows=comparisons %}
+      <h3>Previous priorities (Q1)</h3>
+      {% for p in history.previous_priorities %}<div class="mini-item"><strong>{{ p.position }}. {{ p.description }}</strong> — {{ p.get_delivery_status_display|default:"status not set" }}<div class="muted pre">{{ p.actual_result }}</div></div>{% empty %}<p class="muted">None recorded.</p>{% endfor %}
+      <h3>Commitments made in the previous report (Q10)</h3>
+      {% for c in history.previous_own_commitments %}<div class="mini-item"><a href="{% url 'reviews:commitment_detail' c.pk %}">{{ c.position }}. {{ c.description }}</a> <span class="badge badge-{{ c.status }}">{{ c.get_status_display }}</span><div class="muted">{{ c.success_criteria }}</div></div>{% empty %}<p class="muted">None recorded.</p>{% endfor %}
+      <h3>Previous answers</h3>
+      {% for section in sections %}{% for item in section.questions %}{% if not item.restricted %}
+        {% with ans=history.previous_answers|get_item:item.q.number %}
+        <details class="prev-answer"><summary>Q{{ item.q.number }} · {{ item.q.text }}</summary>
+          {% if ans %}{% for sf in item.q.fields %}{% with v=ans|get_item:sf.key %}{% if v %}<div class="block-label muted">{{ sf.label }}</div><div class="pre">{{ v }}</div>{% endif %}{% endwith %}{% endfor %}{% else %}<p class="muted">Not answered.</p>{% endif %}
+        </details>
+        {% endwith %}
+      {% endif %}{% endfor %}{% endfor %}
+    {% else %}
+      <p class="muted">No previous data: there is no saved report for the preceding period.</p>
+    {% endif %}
+    </div>
+  </section>
+</div>
+<aside class="stack">
+  <section class="card">
+    <div class="card-head"><h3>Earlier reports</h3><a href="{% url 'reviews:history' %}">All</a></div>
+    <div class="card-body">
+      {% for r in history.earlier %}<div class="mini-item"><a href="{% url 'reviews:edit' r.code %}">{{ r.period.label }}</a> {% include "partials/status_badge.html" %}<div><a class="muted" href="{% url 'reviews:compare' %}?a={{ review.code }}&amp;b={{ r.code }}">Compare with this report</a></div></div>{% empty %}<p class="muted">None.</p>{% endfor %}
+    </div>
+  </section>
+  <section class="card">
+    <div class="card-head"><h3>Submitted versions</h3></div>
+    <div class="card-body">
+      {% for rev in history.revisions %}<div class="mini-item"><a href="{% url 'reviews:revision' review.code rev.number %}">Revision {{ rev.number }} · {{ rev.get_kind_display }}</a><div class="muted">{{ rev.created_at|date:"j M Y, H:i" }} · {{ rev.created_by.display_name }}</div>{% if rev.reason %}<div class="pre muted">Reason: {{ rev.reason }}</div>{% endif %}</div>{% empty %}<p class="muted">Not yet submitted.</p>{% endfor %}
+    </div>
+  </section>
+  <section class="card">
+    <div class="card-head"><h3>Audit trail</h3></div>
+    <div class="card-body audit-mini">
+      {% for e in history.audit %}<div class="mini-item"><span class="mono">{{ e.action }}</span> · {{ e.message }}<div class="muted">{{ e.created_at|date:"j M, H:i" }} · {{ e.actor.username|default:"system" }}</div></div>{% empty %}<p class="muted">No events.</p>{% endfor %}
+    </div>
+  </section>
+</aside>
+</div>

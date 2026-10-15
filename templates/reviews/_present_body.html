@@ -1,0 +1,90 @@
+{% load wor_format %}
+<header class="cover">
+  <div class="eyebrow">{% if app_settings.organisation_name %}{{ app_settings.organisation_name }} · {% endif %}Weekly Outcomes Review</div>
+  <h1>Week of {{ period.label }}</h1>
+  <div class="meta">
+    <span>Reporting period <strong>{{ period.start_date|date:"D j M" }} – {{ period.end_date|date:"D j M Y" }}</strong></span>
+    <span>Presented <strong>{{ period.presentation_date|date:"l j F Y" }}</strong></span>
+    <span>Compared with <strong>{{ previous_bounds.start|date:"j M" }} – {{ previous_bounds.end|date:"j M" }}</strong></span>
+    <span>Status <strong>{{ review.get_status_display }}{% if review.submitted_at %} · {{ review.submitted_at|date:"j M Y" }}{% endif %}</strong></span>
+  </div>
+  {% if not completeness.is_final %}<div class="notice">{% if not completeness.period_complete %}DRAFT — this period has not finished; figures are not final.{% else %}INCOMPLETE — not every metric has been entered; figures are not final results.{% endif %}</div>{% elif review.submitted_incomplete %}<div class="notice">Submitted with incomplete preparation items.</div>{% endif %}
+</header>
+
+<table class="glance" aria-label="Key figures at a glance"><tr>
+{% for row in comparisons %}{% with c=row.c %}
+  <td>
+    <div class="g-label">{{ c.metric.short_label }}</div>
+    <div class="g-value">{% if c.current is None %}—{% else %}{{ c.current|metric_value:c.metric.unit }}{% endif %}</div>
+    <span class="trend trend-{{ c.trend }}">{% if c.direction == "up" %}▲ {% elif c.direction == "down" %}▼ {% endif %}{{ c.trend_label }}</span>
+    <div class="g-change">{% if c.absolute_change is not None %}{{ c.absolute_change|signed:c.change_unit }}{% if c.relative_change_pct is not None %} ({{ c.relative_change_pct|signed:"%" }}){% endif %}{% else %}Change not available{% endif %}</div>
+    <div class="g-prev">Previous: {% if c.previous is None %}{% if c.previous_exists %}not entered{% else %}no previous data{% endif %}{% else %}{{ c.previous|metric_value:c.metric.unit }}{% endif %}</div>
+  </td>
+{% endwith %}{% endfor %}
+</tr></table>
+
+<h2><span class="n">1</span> Executive summary</h2>
+{% if review.executive_summary %}<div class="pre">{{ review.executive_summary }}</div>{% else %}<p class="not-answered">No executive summary entered.</p>{% endif %}
+{% for cm in report_comments %}<div class="mgmt-comment"><span class="pre">{{ cm.text }}</span> <span class="muted">— {{ cm.author.display_name }}</span></div>{% endfor %}
+
+<h2><span class="n">2</span> Last week's priorities and delivery</h2>
+{% if priorities %}
+<table class="ptable"><thead><tr><th>#</th><th>Priority</th><th>Expected</th><th>Actual result</th><th>Status</th></tr></thead><tbody>
+{% for p in priorities %}<tr><td>{{ p.position }}</td><td>{{ p.description }}{% if p.notes %}<div class="muted pre">{{ p.notes }}</div>{% endif %}</td><td class="pre">{{ p.expected_outcome }}</td><td class="pre">{{ p.actual_result|default:"—" }}</td><td>{{ p.get_delivery_status_display|default:"Not set" }}</td></tr>{% endfor %}
+</tbody></table>
+{% else %}<p class="not-answered">No priorities recorded.</p>{% endif %}
+{% with qd=q.1 %}{% include "reviews/_qblocks.html" %}{% endwith %}
+
+<h2><span class="n">3</span> Response time and SLA</h2>
+{% include "reviews/_metric_rows.html" with keys="response_time sla" %}
+
+<h2><span class="n">4</span> Missed calls</h2>
+{% include "reviews/_metric_rows.html" with keys="missed_calls" %}
+
+<h2><span class="n">5</span> Customer satisfaction (CSAT)</h2>
+{% include "reviews/_metric_rows.html" with keys="csat" %}
+<p class="muted small">SLA and CSAT differences are percentage points (pp). Relative = percentage change of the value. Figures are entered manually for each period.</p>
+<h3>Interpretation</h3>
+{% with qd=q.2 %}{% include "reviews/_qblocks.html" %}{% endwith %}
+
+<h2><span class="n">6</span> Significant trends</h2>
+{% with qd=q.3 %}{% include "reviews/_qblocks.html" %}{% endwith %}
+
+<h2><span class="n">7</span> Customer friction and recurring issues</h2>
+<h3>{{ q.4.q.text }}</h3>{% with qd=q.4 %}{% include "reviews/_qblocks.html" %}{% endwith %}
+<h3>{{ q.5.q.text }}</h3>{% with qd=q.5 %}{% include "reviews/_qblocks.html" %}{% endwith %}
+
+<h2><span class="n">8</span> Corrective actions</h2>
+{% with qd=q.6 %}{% include "reviews/_qblocks.html" %}{% endwith %}
+
+<h2><span class="n">9</span> Leadership and capacity</h2>
+{% if include_leadership %}
+<h3>{{ q.7.q.text }}</h3>{% with qd=q.7 %}{% include "reviews/_qblocks.html" %}{% endwith %}
+<h3>{{ q.8.q.text }}</h3>{% with qd=q.8 %}{% include "reviews/_qblocks.html" %}{% endwith %}
+{% else %}<p class="muted">Team-performance observations are not included in this view.</p>{% endif %}
+<h3>{{ q.9.q.text }}</h3>{% with qd=q.9 %}{% include "reviews/_qblocks.html" %}{% endwith %}
+
+<h2><span class="n">10</span> Progress against previous commitments</h2>
+{% if prev_commitments %}
+<table class="ptable"><thead><tr><th>Outcome</th><th>From</th><th>Status</th><th>Progress / evidence</th></tr></thead><tbody>
+{% for pc in prev_commitments %}{% with c=pc.obj %}<tr><td>{{ c.description }}<div class="muted">{{ c.success_criteria }}</div></td><td>{{ c.source_review.period.start_date|date:"j M" }}</td>
+<td>{{ pc.status_label }}{% if pc.overdue %} · overdue{% endif %}{% if pc.changed_since %}<div class="muted">Now: {{ c.get_status_display }}</div>{% endif %}</td>
+<td>{% if c.progress_notes %}<div class="pre">{{ c.progress_notes }}</div>{% endif %}{% if c.completion_evidence %}<div class="pre"><strong>Evidence:</strong> {{ c.completion_evidence }}</div>{% endif %}{% if c.incomplete_explanation and pc.status != "completed" %}<div class="pre"><strong>Why not complete:</strong> {{ c.incomplete_explanation }}</div>{% endif %}
+{% for cm in pc.comments %}<div class="mgmt-comment pre">{{ cm.text }}</div>{% endfor %}</td></tr>{% endwith %}{% endfor %}
+</tbody></table>
+{% if review.is_submitted %}<p class="muted small">Status shown as recorded when this report was submitted.</p>{% endif %}
+{% else %}<p class="muted">No previous commitments.</p>{% endif %}
+
+<h2><span class="n">11</span> Outcomes for {{ period.presentation_date|date:"j M" }} onward</h2>
+{% if own_commitments %}
+<table class="ptable"><thead><tr><th>#</th><th>Outcome</th><th>Measurable success criteria</th><th>Owner</th><th>Due</th></tr></thead><tbody>
+{% for oc in own_commitments %}{% with c=oc.obj %}<tr><td>{{ c.position }}</td><td>{{ c.description }}{% for cm in oc.comments %}<div class="mgmt-comment pre">{{ cm.text }}</div>{% endfor %}</td><td class="pre">{{ c.success_criteria }}</td><td>{{ c.owner|default:"—" }}</td><td>{{ c.due_date|date:"j M Y" }}</td></tr>{% endwith %}{% endfor %}
+</tbody></table>
+{% else %}<p class="not-answered">No outcomes defined.</p>{% endif %}
+{% with qd=q.10 %}{% for b in qd.blocks %}<div class="block-label">{{ b.label }}</div><div class="pre">{{ b.value }}</div>{% endfor %}{% for cm in qd.comments %}<div class="mgmt-comment pre">{{ cm.text }}</div>{% endfor %}{% endwith %}
+<h3>{{ q.11.q.text }}</h3>{% with qd=q.11 %}{% include "reviews/_qblocks.html" %}{% endwith %}
+
+<h2><span class="n">12</span> Evidence of success</h2>
+<h3>{{ q.12.q.text }}</h3>{% with qd=q.12 %}{% include "reviews/_qblocks.html" %}{% endwith %}
+
+{% if not include_comments %}<p class="muted small">Management comments are hidden in this view.</p>{% endif %}

@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+{% load wor_format %}
+{% block content %}
+<div class="breadcrumbs"><a href="{% url 'reviews:list' %}">Weekly Reviews</a> / <span class="mono">{{ review.code }}</span></div>
+<div class="page-head">
+  <div>
+    <h1>Weekly Review · {{ period.label }}</h1>
+    <div class="sub">{% include "partials/status_badge.html" with r=review %}{% if review.submitted_incomplete %} <span class="badge badge-warn">Submitted incomplete</span>{% endif %}
+      · Prepared by {{ review.author.display_name }}{% if review.submitted_at %} · Submitted {{ review.submitted_at|date:"j M Y, H:i" }} by {{ review.submitted_by.display_name }}{% endif %}</div>
+  </div>
+</div>
+
+<dl class="period-bar">
+  <div><dt>Current period</dt><dd>{{ period.label }}</dd></div>
+  <div><dt>Presentation</dt><dd>{{ period.presentation_date|date:"l j M Y" }}</dd></div>
+  <div><dt>Previous period</dt><dd>{% with pb=period.previous_bounds %}{{ pb.start|date:"j M" }} – {{ pb.end|date:"j M Y" }}{% endwith %}</dd></div>
+  <div><dt>Period state</dt><dd>{{ period.state_label }}</dd></div>
+  <div><dt>Last saved</dt><dd>{{ review.updated_at|date:"j M, H:i" }}</dd></div>
+  <div><dt>Completion</dt><dd><span data-progress-percent>{{ checklist.percent }}%</span></dd></div>
+</dl>
+
+{% if not completeness.period_complete %}<div class="notice">This period has not finished yet ({{ period.state_label|lower }}). It is a draft: figures are not final results.</div>
+{% elif not completeness.metrics_complete %}<div class="notice">Data incomplete: not every metric has been entered. The report will be labelled incomplete until all four figures are saved.</div>{% endif %}
+{% if review.is_submitted %}<div class="notice notice-info">This report has been submitted and is read-only.{% if can_reopen %} Use “Reopen for correction” to change it; the submitted version is preserved.{% endif %}</div>{% endif %}
+{% if open_tab %}<span data-open-tab="{{ open_tab }}" hidden></span>{% endif %}
+
+<div class="editor-head">
+  <div class="btn-row editor-actions">
+    {% if can_edit %}
+      <button type="submit" form="details-form" class="btn">Save Draft</button>
+      <span class="save-status" data-save-status>{% if errors %}Some fields need attention{% else %}Saved {{ review.updated_at|date:"H:i" }}{% endif %}</span>
+    {% endif %}
+    <span class="spacer"></span>
+    <a class="btn" href="{% url 'reviews:present' review.code %}?preview=1" target="_blank" rel="noopener">Preview Report</a>
+    {% if can_change_status %}
+      {% if review.status == "draft" %}
+        <form method="post" action="{% url 'reviews:status' review.code %}" class="inline-form">{% csrf_token %}<input type="hidden" name="action" value="ready"><button class="btn" type="submit">Mark Ready for Review</button></form>
+      {% elif review.status == "ready" %}
+        <form method="post" action="{% url 'reviews:status' review.code %}" class="inline-form">{% csrf_token %}<input type="hidden" name="action" value="draft"><button class="btn" type="submit">Return to Draft</button></form>
+      {% endif %}
+      {% if not review.is_submitted %}<button type="button" class="btn btn-primary" data-open-dialog="submit-dialog">Submit Report</button>{% endif %}
+    {% endif %}
+    {% if can_reopen %}<button type="button" class="btn btn-danger" data-open-dialog="reopen-dialog">Reopen for correction</button>{% endif %}
+  </div>
+  <div class="tabs" role="tablist" aria-label="Report sections">
+    <button class="tab" role="tab" id="tab-details" data-tab="details" aria-controls="panel-details" aria-selected="true">Details</button>
+    <button class="tab" role="tab" id="tab-comments" data-tab="comments" aria-controls="panel-comments" aria-selected="false">Comments <span class="badge">{{ comment_total }}</span></button>
+    <button class="tab" role="tab" id="tab-history" data-tab="history" aria-controls="panel-history" aria-selected="false">History</button>
+  </div>
+</div>
+
+{# ============================ DETAILS ============================ #}
+<section id="panel-details" role="tabpanel" aria-labelledby="tab-details" data-tab-name="details">
+<div class="split">
+<div>
+  <form id="details-form" method="post" action="{% url 'reviews:save' review.code %}" {% if can_edit %}data-autosave-url="{% url 'reviews:save' review.code %}"{% endif %} novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="meta-present" value="1">
+
+    <section class="card" id="summary">
+      <div class="section-head"><div><span class="eyebrow">Opening</span><h2>Executive summary</h2></div></div>
+      <div class="card-body">
+        {% include "partials/field.html" with field=forms.meta.executive_summary %}
+        {% include "partials/field.html" with field=forms.meta.include_management_comments %}
+        {% if can_view_confidential %}{% include "partials/field.html" with field=forms.meta.is_restricted %}{% endif %}
+      </div>
+    </section>
+
+    <section class="card" id="metrics">
+      <div class="section-head"><div><span class="eyebrow">Figures for {{ period.label }}</span><h2>Performance metrics</h2></div><span class="section-progress">Entered manually · compared with saved reports</span></div>
+      <div class="card-body">
+        <div class="grid grid-4 metric-inputs">
+          {% for field in forms.metrics %}{% include "partials/field.html" %}{% endfor %}
+        </div>
+        <h3>Previous-period comparison</h3>
+        {% if not previous_review %}<p class="muted">No previous data: there is no saved report for {% with pb=period.previous_bounds %}{{ pb.start|date:"j M" }} – {{ pb.end|date:"j M Y" }}{% endwith %}. Changes show “Not available”.</p>{% endif %}
+        {% include "partials/comparison_table.html" with rows=comparisons show_counts=True %}
+        <div class="btn-row ack-row">
+          <span class="tick{% if review.comparison_reviewed_at %} done{% endif %}" data-check-item="comparison">{% if review.comparison_reviewed_at %}✓{% endif %}</span>
+          {% if review.comparison_reviewed_at %}<span>Comparison reviewed {{ review.comparison_reviewed_at|date:"j M, H:i" }}</span>
+            {% if can_edit %}<button type="submit" form="ack-comparison-undo" class="btn btn-sm">Undo</button>{% endif %}
+          {% elif can_edit %}<button type="submit" form="ack-comparison" class="btn btn-sm">Mark comparison reviewed</button><span class="muted">Re-confirm after changing figures.</span>{% else %}<span class="muted">Comparison not yet reviewed</span>{% endif %}
+        </div>
+      </div>
+    </section>
+
+    <div id="questions"></div>
+    {% for section in sections %}
+    <section class="card q-section" id="section-{{ section.key }}">
+      <div class="section-head"><div><span class="eyebrow">{{ section.number }}</span><h2>{{ section.name }}</h2></div><span class="section-progress">{{ section.answered }} of {{ section.total }} answered</span></div>
+      <div class="card-body">
+      {% if section.key == "outcomes" %}
+        {% include "reviews/_follow_through.html" %}
+      {% endif %}
+      {% for item in section.questions %}{% with q=item.q form=item.form %}
+        <div class="question" id="q{{ q.number }}">
+          <div class="question-head">
+            <div class="question-title"><span class="qnum">{{ q.number }}</span><span class="qtext">{{ q.text }}{% if q.confidential %} <span class="badge badge-restricted">Confidential</span>{% endif %}</span></div>
+            <div class="qstate">
+              {% if item.comment_count %}<a class="count-pill" href="?category={{ q.comment_category }}#comments" title="Comments on this question">{% include "partials/icon.html" with name="comment" %}{{ item.comment_count }}</a>{% endif %}
+              <span data-q-status="{{ q.number }}" class="{% if item.answered %}ok{% else %}todo{% endif %}" title="{% if item.answered %}Answered{% else %}Not yet answered{% endif %}">{% if item.answered %}●{% else %}○{% endif %}</span>
+            </div>
+          </div>
+          <div class="question-body">
+          {% if item.restricted %}
+            <div class="restricted-box">Restricted: team-performance answers are visible only to users with confidential access.{% if item.answered %} This question has been answered.{% else %} Not yet answered.{% endif %}</div>
+          {% else %}
+            {% if q.kind == "priorities" %}
+              {% for pos, pform in forms.priorities.items %}
+              <div class="sub-block">
+                <div class="sub-block-head"><span class="eyebrow">Priority {{ pos }}</span></div>
+                <div class="form-grid">
+                  {% include "partials/field.html" with field=pform.description full=True %}
+                  {% include "partials/field.html" with field=pform.expected_outcome %}
+                  {% include "partials/field.html" with field=pform.actual_result %}
+                  {% include "partials/field.html" with field=pform.delivery_status %}
+                  {% include "partials/field.html" with field=pform.notes %}
+                </div>
+              </div>
+              {% endfor %}
+            {% elif q.kind == "metrics" %}
+              <p class="muted">The comparison for this question is the table in <a href="#metrics">Performance metrics</a>, calculated from the figures you entered.</p>
+            {% elif q.kind == "commitments" %}
+              <div id="q10-outcomes"></div>
+              {% for pos, cform in forms.commitments.items %}
+              <div class="sub-block">
+                <div class="sub-block-head"><span class="eyebrow">Outcome {{ pos }}</span></div>
+                <div class="form-grid">
+                  {% include "partials/field.html" with field=cform.description full=True %}
+                  {% include "partials/field.html" with field=cform.success_criteria full=True %}
+                  {% include "partials/field.html" with field=cform.owner %}
+                  {% include "partials/field.html" with field=cform.due_date %}
+                </div>
+              </div>
+              {% endfor %}
+              <p class="muted">Outcomes target the period starting {{ period.presentation_date|date:"j M Y" }}. Due date defaults to the end of that period. Track progress in the <a href="{% url 'reviews:commitments' %}">Commitments Tracker</a>.</p>
+            {% endif %}
+            {% for field in form %}{% include "partials/field.html" %}{% endfor %}
+          {% endif %}
+          </div>
+        </div>
+      {% endwith %}{% endfor %}
+      </div>
+    </section>
+    {% endfor %}
+
+    {% if can_edit %}<div class="btn-row form-foot"><button type="submit" class="btn btn-primary">Save Draft</button><span class="muted">Changes are also saved automatically.</span></div>{% endif %}
+  </form>
+</div>
+
+<aside class="sticky-side stack">
+  <section class="card">
+    <div class="card-head"><h3>Preparation checklist</h3><span data-progress-percent>{{ checklist.percent }}%</span></div>
+    <div class="card-body">
+      <progress data-progress max="100" value="{{ checklist.percent }}">{{ checklist.percent }}%</progress>
+      <ul class="checklist">
+        {% for i in checklist.items %}
+        <li><span class="tick{% if i.done %} done{% endif %}" data-check-item="{{ i.key }}">{% if i.done %}✓{% endif %}</span>
+          <div><a href="#{{ i.anchor }}">{{ i.label }}</a><div class="detail">{{ i.detail }}</div>
+          {% if can_edit and i.key == "comments" and not i.done %}<button type="submit" form="ack-comments" class="btn btn-sm">No comments needed</button>{% endif %}
+          </div></li>
+        {% endfor %}
+      </ul>
+    </div>
+  </section>
+  <section class="card">
+    <div class="card-head"><h3>Questions</h3></div>
+    <div class="card-body">
+      <ul class="qnav">
+        {% for section in sections %}<li class="qnav-section">{{ section.name }} · {{ section.answered }}/{{ section.total }}</li>{% for item in section.questions %}
+          <li><a href="#q{{ item.q.number }}"><span>{{ item.q.number }}. {{ item.q.text|truncatechars:38 }}</span><span data-q-status="{{ item.q.number }}" class="{% if item.answered %}ok{% else %}todo{% endif %}">{% if item.answered %}●{% else %}○{% endif %}</span></a></li>
+        {% endfor %}{% endfor %}
+      </ul>
+    </div>
+  </section>
+</aside>
+</div>
+</section>
+
+{# ============================ COMMENTS ============================ #}
+<section id="panel-comments" role="tabpanel" aria-labelledby="tab-comments" data-tab-name="comments" hidden>
+<div class="split">
+  <div>
+    <div class="filters chips" id="comments">
+      <a class="btn btn-sm{% if not comment_category %} btn-primary{% endif %}" href="?#comments">All ({{ comment_total }})</a>
+      {% for v, l in comment_categories %}<a class="btn btn-sm{% if v == comment_category %} btn-primary{% endif %}" href="?category={{ v }}#comments">{{ l }}</a>{% endfor %}
+    </div>
+    {% for cm in comments %}
+      {% include "partials/comment.html" with can_modify=comment_permissions|get_item:cm.pk %}
+    {% empty %}
+      <div class="card empty"><p>No comments{% if comment_category %} in this category{% endif %} yet.</p><p class="muted">Comments add context. They do not replace the metric fields or the 12 answers.</p></div>
+    {% endfor %}
+  </div>
+  <aside class="stack">
+    {% if can_add_comment %}
+    <section class="card">
+      <div class="card-head"><h3>Add comment</h3></div>
+      <div class="card-body">
+        <form method="post" action="{% url 'reviews:comment_add' review.code %}">{% csrf_token %}
+          {% include "partials/form_errors.html" with form=comment_form %}
+          {% include "partials/field.html" with field=comment_form.target %}
+          {% include "partials/field.html" with field=comment_form.category %}
+          {% include "partials/field.html" with field=comment_form.visibility %}
+          {% include "partials/field.html" with field=comment_form.text %}
+          <p class="muted">Management Report comments may appear in the presentation and PDF. Internal Only comments never do.</p>
+          <button type="submit" class="btn btn-primary">Add comment</button>
+        </form>
+      </div>
+    </section>
+    {% elif review.is_submitted %}
+    <div class="notice notice-info">Comments on submitted reports can only be changed by users with correction permission.</div>
+    {% endif %}
+  </aside>
+</div>
+</section>
+
+{# ============================ HISTORY ============================ #}
+<section id="panel-history" role="tabpanel" aria-labelledby="tab-history" data-tab-name="history" hidden>
+  {% include "reviews/_history_tab.html" %}
+</section>
+
+{# ---- standalone forms referenced by buttons via the form attribute ---- #}
+{% if can_edit %}
+<form id="ack-comparison" method="post" action="{% url 'reviews:acknowledge' review.code %}" hidden>{% csrf_token %}<input type="hidden" name="item" value="comparison"></form>
+<form id="ack-comparison-undo" method="post" action="{% url 'reviews:acknowledge' review.code %}" hidden>{% csrf_token %}<input type="hidden" name="item" value="comparison"><input type="hidden" name="undo" value="1"></form>
+<form id="ack-prev" method="post" action="{% url 'reviews:acknowledge' review.code %}" hidden>{% csrf_token %}<input type="hidden" name="item" value="prev_commitments"></form>
+<form id="ack-comments" method="post" action="{% url 'reviews:acknowledge' review.code %}" hidden>{% csrf_token %}<input type="hidden" name="item" value="comments"></form>
+{% endif %}
+{% if user.may_edit_reports %}
+{% for item in prev_commitments %}
+<form id="cp-form-{{ item.obj.pk }}" method="post" action="{% url 'reviews:commitment_update' item.obj.pk %}" hidden>{% csrf_token %}<input type="hidden" name="review" value="{{ review.code }}"></form>
+{% endfor %}
+{% endif %}
+
+{% if can_change_status and not review.is_submitted %}
+<dialog id="submit-dialog" aria-labelledby="submit-title">
+  <form method="post" action="{% url 'reviews:status' review.code %}" {% if not checklist.complete %}data-require-check{% endif %}>{% csrf_token %}
+    <input type="hidden" name="action" value="submit">
+    <div class="card-body">
+      <h2 id="submit-title">Submit report for {{ period.label }}?</h2>
+      {% if checklist.complete %}
+        <p>All checklist items are complete. Once submitted, the report becomes read-only and a permanent copy is recorded.</p>
+      {% else %}
+        <p><strong>This report is incomplete.</strong> Outstanding items:</p>
+        <ul>{% for i in checklist.outstanding %}<li>{{ i.label }} — <span class="muted">{{ i.detail }}</span></li>{% endfor %}</ul>
+        {% if app_settings.allow_incomplete_submission %}
+          <label class="check"><input type="checkbox" name="confirm_incomplete" value="1"> I understand this report is incomplete and want to submit it anyway.</label>
+        {% else %}
+          <p class="notice">Incomplete submissions are disabled by an administrator. Complete the outstanding items first.</p>
+        {% endif %}
+      {% endif %}
+    </div>
+    <div class="dialog-actions">
+      <button type="button" class="btn" data-close-dialog>Cancel</button>
+      <button type="submit" class="btn btn-primary"{% if not checklist.complete and not app_settings.allow_incomplete_submission %} disabled{% endif %}>Submit Report</button>
+    </div>
+  </form>
+</dialog>
+{% endif %}
+{% if can_reopen %}
+<dialog id="reopen-dialog" aria-labelledby="reopen-title">
+  <form method="post" action="{% url 'reviews:status' review.code %}">{% csrf_token %}
+    <input type="hidden" name="action" value="reopen">
+    <div class="card-body">
+      <h2 id="reopen-title">Reopen submitted report?</h2>
+      <p>The report returns to Draft for correction. The submitted version is preserved as a revision and this action is recorded in the audit log.</p>
+      {% include "partials/field.html" with field=reopen_form.reason %}
+    </div>
+    <div class="dialog-actions"><button type="button" class="btn" data-close-dialog>Cancel</button><button type="submit" class="btn btn-danger">Reopen for correction</button></div>
+  </form>
+</dialog>
+{% endif %}
+{{ comment_category_map|json_script:"comment-category-map" }}
+{% endblock %}

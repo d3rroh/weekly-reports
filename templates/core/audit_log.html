@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumbs"><a href="{% url 'settings' %}">Settings</a> /</div><h1>Audit log</h1></div>
+<form method="get" class="filters"><div class="field"><label for="f-action">Action</label><select id="f-action" name="action" data-autosubmit><option value="">All actions</option>{% for a in actions %}<option value="{{ a }}"{% if a == action %} selected{% endif %}>{{ a }}</option>{% endfor %}</select></div></form>
+</div>
+<div class="card table-wrap">
+<table>
+  <thead><tr><th>When</th><th>User</th><th>Action</th><th>Item</th><th>Details</th><th>IP</th></tr></thead>
+  <tbody>
+  {% for e in page %}
+  <tr><td>{{ e.created_at|date:"j M Y, H:i:s" }}</td><td>{{ e.actor.username|default:"—" }}</td><td class="mono">{{ e.action }}</td>
+  <td>{% if e.review %}<a href="{% url 'reviews:edit' e.review.period.code %}">{{ e.object_repr }}</a>{% else %}{{ e.object_repr }}{% endif %}</td>
+  <td>{{ e.message }}</td><td class="mono">{{ e.ip_address|default:"" }}</td></tr>
+  {% empty %}<tr><td colspan="6" class="muted">No events.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% include "partials/pager.html" %}
+{% endblock %}

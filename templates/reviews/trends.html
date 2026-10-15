@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% load static wor_format %}
+{% block content %}
+<div class="page-head"><div><h1>Performance Trends</h1><div class="sub">{{ first_label }} to {{ last_label }} · saved values only</div></div></div>
+<form method="get" class="filters card card-pad">
+  {% include "partials/field.html" with field=form.range %}
+  {% include "partials/field.html" with field=form.start %}
+  {% include "partials/field.html" with field=form.end %}
+  <button type="submit" class="btn">Apply</button>
+</form>
+<section class="card section-gap">
+  <div class="card-head"><h2>Observed changes</h2></div>
+  <div class="card-body">
+    <ul class="summary-list">
+    {% for s in summary %}
+      <li><strong>{{ s.metric.label }}:</strong>
+        {% if s.latest is None %}{{ s.text }}
+        {% else %}latest {{ s.latest|metric_value:s.metric.unit }} ({{ s.latest_range }}){% if s.comparison %}, {{ s.comparison.absolute_change|signed:s.comparison.change_unit }} vs previous recorded period ({{ s.prev|metric_value:s.metric.unit }}, {{ s.prev_range }}) — {{ s.comparison.trend_label|lower }}. Since {{ s.first_range }}: {{ s.span.absolute_change|signed:s.span.change_unit }}. Best {{ s.best|metric_value:s.metric.unit }} ({{ s.best_range }}); weakest {{ s.worst|metric_value:s.metric.unit }} ({{ s.worst_range }}){% else %}; only one value recorded in this range{% endif %}.{% endif %}
+        {% if s.missing %}<span class="muted">{{ s.missing }} period{{ s.missing|pluralize }} without a value.</span>{% endif %}
+      </li>
+    {% endfor %}
+    </ul>
+    <p class="muted">This summary states recorded changes only; it does not explain causes.</p>
+  </div>
+</section>
+<div class="grid grid-2">
+  {% for m in chart_metrics %}
+  <section class="card">
+    <div class="card-head"><h3>{{ m.label }}</h3><span class="muted">{% if m.higher_is_better %}Higher is better{% else %}Lower is better{% endif %}</span></div>
+    <div class="card-body"><div class="chart-box"><canvas data-metric="{{ m.key }}" role="img" aria-label="{{ m.label }} by reporting period"></canvas></div></div>
+  </section>
+  {% endfor %}
+</div>
+<p class="legend-note">Each point is one Wednesday–Tuesday period, labelled by its start date; hover for exact dates. Gaps mean no report or no value. Larger filled marker: latest period with data; dark marker: the period before it. Percentage axes stop at 100%.</p>
+<details class="card card-pad section-gap"><summary>Data table</summary>
+<div class="table-wrap"><table>
+  <thead><tr><th>Period</th>{% for m in chart_metrics %}<th class="num">{{ m.label }}</th>{% endfor %}<th>Report</th></tr></thead>
+  <tbody>{% for p in points %}<tr><td>{{ p.range }}</td>{% for m in chart_metrics %}{% with v=p.values|get_item:m.key %}<td class="num">{% if v is None %}<span class="muted">—</span>{% else %}{{ v|metric_value:m.unit }}{% endif %}</td>{% endwith %}{% endfor %}<td>{% if p.has_report %}<a href="{% url 'reviews:edit' p.code %}">{{ p.status }}</a>{% else %}<span class="muted">No report</span>{% endif %}</td></tr>{% endfor %}</tbody>
+</table></div>
+</details>
+{% endblock %}
+{% block scripts %}
+{{ chart_payload|json_script:"chart-data" }}
+<script src="{% static 'vendor/chart.umd.js' %}"></script>
+<script src="{% static 'js/charts.js' %}"></script>
+{% endblock %}

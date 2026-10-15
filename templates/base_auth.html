@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block body %}
+<div class="auth-wrap">
+  <section class="auth-brand" aria-hidden="true">
+    <div class="brand">
+      <span class="brand-mark"><svg viewBox="0 0 24 24"><path d="M4 17l5-6 4 4 7-9"/></svg></span>
+      <div><div class="brand-name">{{ APP_NAME }}</div>{% if app_settings.organisation_name %}<div class="brand-org">{{ app_settings.organisation_name }}</div>{% endif %}</div>
+    </div>
+    <blockquote>Prepared every week. <span>Presented every Wednesday.</span></blockquote>
+    <p class="foot">Support performance, customer satisfaction and next-week commitments, recorded by hand and compared against the week before.</p>
+  </section>
+  <section class="auth-side">
+    <div class="auth-card">
+      {% if messages %}<ul class="messages">{% for m in messages %}<li class="msg-{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
+      {% block auth %}{% endblock %}
+    </div>
+  </section>
+</div>
+{% endblock %}

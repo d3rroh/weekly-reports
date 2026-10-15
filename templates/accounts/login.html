@@ -1,0 +1,13 @@
+{% extends "base_auth.html" %}
+{% block auth %}
+<h1>Sign in</h1>
+<p class="lead">Use the account your administrator created for you.</p>
+<form method="post">{% csrf_token %}
+  {% include "partials/form_errors.html" %}
+  {% include "partials/field.html" with field=form.username %}
+  {% include "partials/field.html" with field=form.password %}
+  <input type="hidden" name="next" value="{{ next }}">
+  <button type="submit" class="btn btn-primary">Sign in</button>
+  <p class="auth-foot"><a href="{% url 'accounts:password_reset' %}">Forgotten your password?</a></p>
+</form>
+{% endblock %}

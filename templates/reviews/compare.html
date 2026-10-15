@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% load wor_format %}
+{% block content %}
+<div class="breadcrumbs"><a href="{% url 'reviews:history' %}">Historical Reports</a> /</div>
+<div class="page-head"><div><h1>Compare reports</h1><div class="sub">Defaults to the immediately preceding period. Choose any two saved reports.</div></div></div>
+<form method="get" class="filters card card-pad">
+  <div class="field"><label for="f-a">Report</label><select id="f-a" name="a" required><option value="">— Select —</option>{% for r in all_reviews %}<option value="{{ r.code }}"{% if a and r.pk == a.pk %} selected{% endif %}>{{ r.period.label }} ({{ r.get_status_display }})</option>{% endfor %}</select></div>
+  <div class="field"><label for="f-b">Compare with</label><select id="f-b" name="b"><option value="">Preceding period (default)</option>{% for r in all_reviews %}<option value="{{ r.code }}"{% if b and r.pk == b.pk %} selected{% endif %}>{{ r.period.label }} ({{ r.get_status_display }})</option>{% endfor %}</select></div>
+  <button type="submit" class="btn btn-primary">Compare</button>
+</form>
+{% if a and b %}
+<section class="card">
+  <div class="card-head"><h2>{{ a.period.label }} vs {{ b.period.label }}</h2><span class="muted">{{ gap_weeks }} week{{ gap_weeks|pluralize }} apart</span></div>
+  <div class="card-body">{% include "partials/comparison_table.html" with rows=comparisons cur_label=a.period.label prev_label=b.period.label %}</div>
+</section>
+<section class="card section-gap">
+  <div class="card-head"><h2>Answers</h2></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th class="w-q">Question</th><th>{{ b.period.label }}</th><th>{{ a.period.label }}</th></tr></thead>
+    <tbody>
+    {% for row in answer_rows %}
+      <tr><td><strong>Q{{ row.q.number }}</strong> {{ row.q.text }}</td>
+      <td>{% for sf in row.q.fields %}{% with v=row.b|get_item:sf.key %}{% if v %}<div class="block-label muted">{{ sf.label }}</div><div class="pre">{{ v }}</div>{% endif %}{% endwith %}{% empty %}{% endfor %}</td>
+      <td>{% for sf in row.q.fields %}{% with v=row.a|get_item:sf.key %}{% if v %}<div class="block-label muted">{{ sf.label }}</div><div class="pre">{{ v }}</div>{% endif %}{% endwith %}{% endfor %}</td></tr>
+    {% endfor %}
+    <tr><td><strong>Q10</strong> Outcomes</td>
+      <td>{% for c in b_commitments %}<div>{{ c.position }}. {{ c.description }} <span class="badge badge-{{ c.status }}">{{ c.get_status_display }}</span></div>{% empty %}<span class="muted">None</span>{% endfor %}</td>
+      <td>{% for c in a_commitments %}<div>{{ c.position }}. {{ c.description }} <span class="badge badge-{{ c.status }}">{{ c.get_status_display }}</span></div>{% empty %}<span class="muted">None</span>{% endfor %}</td></tr>
+    </tbody>
+  </table></div>
+</section>
+{% elif a %}
+<div class="card empty"><p>No saved report exists for the period preceding {{ a.period.label }}. Choose another report to compare with.</p></div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,7 @@
+{% extends user.is_authenticated|yesno:"base.html,base_auth.html" %}
+{% block content %}
+<div class="card empty"><h2>Access denied</h2><p>You do not have permission to view or change this item. The attempt has been recorded.</p><a class="btn" href="{% url 'dashboard' %}">Back to overview</a></div>
+{% endblock %}
+{% block auth %}
+<h1>Access denied</h1><p>Your session may have expired, or the form was submitted without a valid security token.</p><a class="btn btn-primary" href="{% url 'accounts:login' %}">Sign in</a>
+{% endblock %}

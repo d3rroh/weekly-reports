@@ -1,0 +1,7 @@
+{% extends user.is_authenticated|yesno:"base.html,base_auth.html" %}
+{% block content %}
+<div class="card empty"><h2>Not found</h2><p>The page or report you requested does not exist.</p><a class="btn" href="{% url 'dashboard' %}">Back to overview</a></div>
+{% endblock %}
+{% block auth %}
+<h1>Not found</h1><p>The page you requested does not exist.</p><a class="btn btn-primary" href="{% url 'accounts:login' %}">Sign in</a>
+{% endblock %}

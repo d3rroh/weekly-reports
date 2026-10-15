@@ -1,0 +1,9 @@
+{% load wor_format %}
+<div class="card metric">
+  <div class="metric-label"><span>{{ c.metric.short_label }}</span>{% include "partials/trend.html" %}</div>
+  {% if c.current is None %}<div class="metric-value missing">Not entered</div>
+  {% else %}<div class="metric-value">{{ c.current|metric_number:c.metric.unit }}<small>{% if c.metric.unit == "%" %}%{% elif c.metric.unit == "min" %}min{% else %}calls{% endif %}</small></div>{% endif %}
+  <div class="metric-change">{% include "partials/change.html" %}</div>
+  <div class="metric-prev">Previous: {% if c.previous is None %}{% if c.previous_exists %}not entered{% else %}no previous data{% endif %}{% else %}{{ c.previous|metric_value:c.metric.unit }}{% endif %}</div>
+  {% if spark %}{% sparkline spark %}<div class="metric-foot"><span>12-week trend</span><span>{% if c.metric.higher_is_better %}higher is better{% else %}lower is better{% endif %}</span></div>{% endif %}
+</div>

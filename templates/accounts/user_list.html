@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head">
+  <div><h1>User Management</h1><div class="sub">Administrators hold every permission. Reviewers hold only the permissions granted below.</div></div>
+  <a class="btn btn-primary" href="{% url 'accounts:user_create' %}">Add user</a>
+</div>
+<div class="card table-wrap">
+<table>
+  <thead><tr><th>User</th><th>Role</th><th>Edit reports</th><th>Confidential access</th><th>Correct submitted</th><th>Status</th><th>Last sign-in</th><th></th></tr></thead>
+  <tbody>
+  {% for u in users %}
+  <tr>
+    <td><strong>{{ u.username }}</strong><div class="muted">{{ u.get_full_name }} {{ u.email }}</div></td>
+    <td>{{ u.get_role_display }}</td>
+    <td>{% if u.may_edit_reports %}Yes{% else %}No{% endif %}</td>
+    <td>{% if u.may_view_confidential %}Yes{% else %}No{% endif %}</td>
+    <td>{% if u.may_correct_submitted %}Yes{% else %}No{% endif %}</td>
+    <td>{% if u.is_active %}<span class="badge badge-submitted">Active</span>{% else %}<span class="badge">Inactive</span>{% endif %}</td>
+    <td>{{ u.last_login|date:"j M Y, H:i"|default:"Never" }}</td>
+    <td><a class="btn btn-sm" href="{% url 'accounts:user_edit' u.pk %}">Edit</a></td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

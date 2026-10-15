@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head"><div><h1>Settings</h1><div class="sub">Business timezone: <strong>{{ obj.business_timezone }}</strong>{% if obj.updated_by %} · last changed by {{ obj.updated_by.display_name }} on {{ obj.updated_at|date:"j M Y, H:i" }}{% endif %}</div></div>
+  {% if user.is_app_admin %}<a class="btn" href="{% url 'audit_log' %}">Audit log</a>{% endif %}
+</div>
+<div class="split">
+<div class="card card-pad">
+  <h2>Application settings</h2>
+  {% if form %}
+  <form method="post">{% csrf_token %}
+    {% include "partials/form_errors.html" %}
+    {% include "partials/field.html" with field=form.organisation_name %}
+    {% include "partials/field.html" with field=form.business_timezone %}
+    {% include "partials/field.html" with field=form.include_management_comments_default %}
+    {% include "partials/field.html" with field=form.show_leadership_in_presentation %}
+    {% include "partials/field.html" with field=form.allow_incomplete_submission %}
+    <button type="submit" class="btn btn-primary">Save settings</button>
+  </form>
+  {% else %}
+  <dl>
+    <dt class="muted">Organisation</dt><dd>{{ obj.organisation_name|default:"—" }}</dd>
+    <dt class="muted">Business timezone</dt><dd>{{ obj.business_timezone }}</dd>
+    <dt class="muted">Management comments in presentation by default</dt><dd>{{ obj.include_management_comments_default|yesno:"Yes,No" }}</dd>
+    <dt class="muted">Allow confirmed incomplete submissions</dt><dd>{{ obj.allow_incomplete_submission|yesno:"Yes,No" }}</dd>
+  </dl>
+  <p class="muted">Only administrators can change application settings.</p>
+  {% endif %}
+</div>
+<div class="card card-pad">
+  <h2>Reporting calendar</h2>
+  <p>Each reporting period runs <strong>Wednesday 00:00 to Tuesday 23:59:59</strong> in the business timezone and is presented the following Wednesday.</p>
+  <p class="muted">Changing the timezone affects how future periods and timestamps are calculated. The dates of existing reports never change.</p>
+  <h3>Your account</h3>
+  <p>{{ user.display_name }} · {{ user.get_role_display }}<br>
+  <a href="{% url 'accounts:password_change' %}">Change password</a></p>
+</div>
+</div>
+{% endblock %}

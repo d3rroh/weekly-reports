@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="breadcrumbs"><a href="{% url 'reviews:edit' review.code %}#comments">{{ review.period.label }}</a> / Comments</div>
+<div class="page-head"><div><h1>Edit comment</h1><div class="sub">By {{ comment.author.display_name }} · {{ comment.created_at|date:"j M Y, H:i" }}</div></div></div>
+{% if review.is_submitted %}<div class="notice">This report has been submitted. Your edit will be recorded, and the original text is retained in the comment history.</div>{% endif %}
+<div class="split">
+<div class="card card-pad">
+  <form method="post">{% csrf_token %}
+    {% include "partials/form_errors.html" %}
+    {% include "partials/field.html" with field=form.target %}
+    {% include "partials/field.html" with field=form.category %}
+    {% include "partials/field.html" with field=form.visibility %}
+    {% include "partials/field.html" with field=form.text %}
+    <div class="btn-row"><button type="submit" class="btn btn-primary">Save comment</button><a class="btn" href="{% url 'reviews:edit' review.code %}#comments">Cancel</a></div>
+  </form>
+</div>
+<div class="card">
+  <div class="card-head"><h3>Previous versions</h3></div>
+  <div class="card-body">
+    {% for r in revisions %}<div class="mini-item"><div class="muted">{{ r.changed_at|date:"j M Y, H:i" }} · {{ r.changed_by.display_name }} · {{ r.get_action_display }} · {{ r.visibility }}</div><div class="pre">{{ r.text }}</div></div>{% empty %}<p class="muted">No earlier versions.</p>{% endfor %}
+  </div>
+</div>
+</div>
+{% endblock %}

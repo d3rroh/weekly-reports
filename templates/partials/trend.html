@@ -1,0 +1,1 @@
+<span class="trend trend-{{ c.trend }}">{% if c.direction == "up" %}<span class="arrow" aria-hidden="true">▲</span>{% elif c.direction == "down" %}<span class="arrow" aria-hidden="true">▼</span>{% elif c.direction == "flat" %}<span class="arrow" aria-hidden="true">■</span>{% endif %}{{ c.trend_label }}</span>

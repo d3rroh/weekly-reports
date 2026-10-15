@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head"><div><div class="breadcrumbs"><a href="{% url 'accounts:user_list' %}">User Management</a> /</div><h1>{% if instance %}Edit {{ instance.username }}{% else %}Add user{% endif %}</h1></div></div>
+<div class="card card-pad">
+<form method="post" autocomplete="off">{% csrf_token %}
+  {% include "partials/form_errors.html" %}
+  <div class="form-grid">
+    {% include "partials/field.html" with field=form.username %}
+    {% include "partials/field.html" with field=form.email %}
+    {% include "partials/field.html" with field=form.first_name %}
+    {% include "partials/field.html" with field=form.last_name %}
+    {% include "partials/field.html" with field=form.role %}
+    {% include "partials/field.html" with field=form.is_active %}
+  </div>
+  <h3>Permissions</h3>
+  <p class="muted">These apply to reviewers. Administrators always have every permission.</p>
+  {% include "partials/field.html" with field=form.can_edit_reports %}
+  {% include "partials/field.html" with field=form.can_view_confidential %}
+  {% include "partials/field.html" with field=form.can_correct_submitted %}
+  <h3>Password</h3>
+  <div class="form-grid">
+    {% include "partials/field.html" with field=form.password1 %}
+    {% include "partials/field.html" with field=form.password2 %}
+  </div>
+  <div class="btn-row"><button type="submit" class="btn btn-primary">Save user</button><a class="btn" href="{% url 'accounts:user_list' %}">Cancel</a></div>
+</form>
+</div>
+{% endblock %}

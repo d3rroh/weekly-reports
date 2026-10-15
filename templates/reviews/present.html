@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load static %}
+{% block body_class %}present-body{% endblock %}
+{% block body %}
+<div class="present-toolbar no-print">
+  <a href="{% url 'reviews:edit' review.code %}" class="btn-row">{% include "partials/icon.html" with name="arrow-left" %}Back to report</a>
+  <form method="get">
+    <input type="hidden" name="comments" value="0"><label class="check"><input type="checkbox" name="comments" value="1" {% if include_comments %}checked{% endif %} data-autosubmit> Management comments</label>
+    {% if leadership_allowed %}<input type="hidden" name="leadership" value="0"><label class="check"><input type="checkbox" name="leadership" value="1" {% if include_leadership %}checked{% endif %} data-autosubmit> Leadership section</label>{% endif %}
+  </form>
+  <div class="btn-row">
+    <button type="button" class="btn" data-print>{% include "partials/icon.html" with name="print" %}Print</button>
+    <a class="btn btn-primary" href="{% url 'reviews:pdf' review.code %}?comments={{ include_comments|yesno:'1,0' }}&amp;leadership={{ include_leadership|yesno:'1,0' }}">{% include "partials/icon.html" with name="download" %}Export PDF</a>
+  </div>
+</div>
+<main class="present">
+  {% include "reviews/_present_body.html" %}
+  <p class="print-only muted small">Printed from {{ APP_NAME }} · {{ review.code }}</p>
+</main>
+{% endblock %}

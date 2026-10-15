@@ -1,0 +1,20 @@
+# systemd unit — copy to /etc/systemd/system/weekly-outcomes.service
+[Unit]
+Description=Weekly Outcomes Review (Gunicorn)
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=weekly-outcomes
+Group=weekly-outcomes
+WorkingDirectory=/opt/weekly-outcomes
+EnvironmentFile=/opt/weekly-outcomes/.env
+ExecStart=/opt/weekly-outcomes/.venv/bin/gunicorn -c deploy/gunicorn.conf.py config.wsgi:application
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target

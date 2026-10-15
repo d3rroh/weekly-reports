@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% load wor_format %}
+{% block content %}
+<div class="breadcrumbs"><a href="{% url 'reviews:edit' review.code %}#history">{{ review.period.label }}</a> / Revisions</div>
+<div class="page-head"><div><h1>Revision {{ revision.number }} · {{ revision.get_kind_display }}</h1>
+<div class="sub">Recorded {{ revision.created_at|date:"j M Y, H:i" }} by {{ revision.created_by.display_name }}{% if revision.reason %} · Reason: {{ revision.reason }}{% endif %}</div></div></div>
+<div class="notice notice-info">A read-only copy of the report as it stood at this point.</div>
+<section class="card card-pad">
+  <h2>Metrics</h2>
+  <table><tbody>{% for m in metrics_defs %}<tr><td>{{ m.label }}</td><td class="num">{% with v=snap.metrics|get_item:m.key %}{% if v is None %}Not entered{% else %}{{ v|metric_value:m.unit }}{% endif %}{% endwith %}</td></tr>{% endfor %}</tbody></table>
+  <h2 class="mt">Executive summary</h2><div class="pre">{{ snap.executive_summary|default:"—" }}</div>
+  <h2 class="mt">Priorities</h2>
+  {% for p in snap.priorities %}<div class="mini-item"><strong>{{ p.position }}. {{ p.description }}</strong> — {{ p.delivery_status|default:"not set" }}<div class="pre muted">{{ p.actual_result }}</div></div>{% empty %}<p class="muted">None.</p>{% endfor %}
+  <h2 class="mt">Answers</h2>
+  {% for q, blocks in snap_answers %}<details class="prev-answer" open><summary>Q{{ q.number }} · {{ q.text }}</summary>{% for label, v in blocks %}<div class="block-label muted">{{ label }}</div><div class="pre">{{ v }}</div>{% empty %}<p class="muted">Not answered.</p>{% endfor %}</details>{% endfor %}
+  <h2 class="mt">Outcomes for next week</h2>
+  {% for c in snap.commitments %}<div class="mini-item">{{ c.position }}. {{ c.description }} — {{ c.success_criteria }} <span class="muted">(due {{ c.due_date }})</span></div>{% empty %}<p class="muted">None.</p>{% endfor %}
+  <h2 class="mt">Comments</h2>
+  {% for c in snap.comments %}<div class="mini-item"><span class="badge badge-{{ c.visibility }}">{{ c.visibility }}</span> {{ c.category }} · {{ c.author }}<div class="pre">{{ c.text }}</div></div>{% empty %}<p class="muted">None.</p>{% endfor %}
+</section>
+{% endblock %}

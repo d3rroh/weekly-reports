@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% load static wor_format %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <div class="eyebrow">Overview</div>
+    <h1>Week of {{ latest_label }}</h1>
+    <div class="sub">Compared with {{ previous_label }} · presented {{ latest.presentation_date|date:"l j F Y" }}</div>
+  </div>
+</div>
+
+<section class="hero" aria-label="Report readiness">
+  {% if review %}{% ring checklist.percent %}{% else %}{% ring 0 %}{% endif %}
+  <div>
+    <span class="eyebrow">Wednesday presentation</span>
+    <h2>{% if review %}{% if review.is_submitted %}Report submitted{% elif checklist.complete %}Ready to present{% else %}{{ checklist.outstanding|length }} item{{ checklist.outstanding|length|pluralize }} left to prepare{% endif %}{% else %}Report not started{% endif %}
+      {% if review %} {% include "partials/status_badge.html" with r=review %}{% endif %}</h2>
+    <p>{% if review %}Last saved {{ review.updated_at|date:"D j M, H:i" }} by {{ review.updated_by.display_name|default:review.author.display_name }}{% if checklist.outstanding %} · Next: {{ checklist.outstanding.0.label|lower }}{% endif %}{% else %}Create the report for {{ latest_label }} to begin.{% endif %}</p>
+  </div>
+  <div class="btn-row">
+    {% if review %}
+      <a class="btn" href="{% url 'reviews:present' review.code %}">{% include "partials/icon.html" with name="present" %}Presentation</a>
+      <a class="btn btn-primary" href="{% url 'reviews:edit' review.code %}">{% if review.is_submitted %}Open report{% else %}Continue report{% endif %}</a>
+    {% elif can_edit %}
+      <form method="post" action="{% url 'reviews:new' %}" class="inline-form">{% csrf_token %}<input type="hidden" name="period_start" value="{{ latest.start|date:'Y-m-d' }}"><button class="btn btn-primary" type="submit">Prepare report</button></form>
+    {% endif %}
+  </div>
+</section>
+
+{% if not any_reviews %}
+<div class="card empty">
+  <h2>No reports yet</h2>
+  <p>This application holds only figures and answers you enter. Nothing is imported from other systems.</p>
+  <ol>
+    <li>Create the report for the latest completed period ({{ latest_label }}).</li>
+    <li>Enter the four performance figures and answer the 12 review questions.</li>
+    <li>Define three outcomes for next week, then preview and submit.</li>
+  </ol>
+  <p class="muted">Comparisons appear once two consecutive weeks have been recorded.</p>
+</div>
+{% else %}
+
+{% if review %}
+  {% if not completeness.is_final %}<div class="notice">Figures for this period are {% if not completeness.metrics_complete %}incomplete — not every metric has been entered{% else %}not final — the period has not ended{% endif %}. Do not present them as final results.</div>{% endif %}
+  <div class="grid grid-4">
+    {% for row in metric_rows %}{% include "partials/metric_card.html" with c=row.c spark=row.spark %}{% endfor %}
+  </div>
+{% else %}
+  <div class="notice notice-info">No report has been created for {{ latest_label }} yet.{% if can_edit %} Use “Prepare report” above to start it.{% endif %}</div>
+{% endif %}
+
+<div class="split dash-split">
+  <div class="stack">
+    <section class="card">
+      <div class="card-head"><h2>Management observations</h2><span class="muted small">Question 3 · latest reports</span></div>
+      <div class="card-body">
+        {% for o in observations %}
+          <div class="obs"><div class="when">{{ o.review.period.start_date|date:"j M" }} – {{ o.review.period.end_date|date:"j M" }}</div>
+            <div><blockquote class="pre">{{ o.trends|truncatechars:420 }}</blockquote>{% if o.risks %}<div class="risk pre">Risks: {{ o.risks|truncatechars:240 }}</div>{% endif %}</div></div>
+        {% empty %}<p class="muted">No trends recorded yet.</p>{% endfor %}
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>Historical performance</h2><a href="{% url 'reviews:trends' %}">All trends →</a></div>
+      <div class="card-body">
+        <div class="grid grid-2">
+          {% for m in chart_metrics %}
+          <div><h4>{{ m.label }}</h4><div class="chart-box sm"><canvas data-metric="{{ m.key }}" data-compact role="img" aria-label="{{ m.label }} over the last 12 periods"></canvas></div></div>
+          {% endfor %}
+        </div>
+        <p class="legend-note">Last 12 periods, saved reports only. Gaps mean no report or no value. Filled marker: latest · dark marker: previous.</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h2>Recent submitted reports</h2><a href="{% url 'reviews:history' %}">Historical reports →</a></div>
+      <div class="table-wrap">
+        <table><tbody>
+          {% for r in recent_submitted %}
+          <tr><td><a href="{% url 'reviews:edit' r.code %}"><strong>{{ r.period.label }}</strong></a></td><td>{% include "partials/status_badge.html" %}</td><td class="muted">Submitted {{ r.submitted_at|date:"j M Y" }}</td><td class="num"><a href="{% url 'reviews:present' r.code %}">Present</a></td></tr>
+          {% empty %}<tr><td class="muted">No submitted reports yet.</td></tr>{% endfor %}
+        </tbody></table>
+      </div>
+    </section>
+  </div>
+
+  <div class="stack">
+    {% if review %}
+    <section class="card">
+      <div class="card-head"><h3>Preparation checklist</h3><span class="figure muted">{{ checklist.done }}/{{ checklist.total }}</span></div>
+      <div class="card-body">
+        <progress data-progress max="100" value="{{ checklist.percent }}">{{ checklist.percent }}%</progress>
+        <ul class="checklist">
+          {% for i in checklist.items %}<li><span class="tick{% if i.done %} done{% endif %}">{% if i.done %}✓{% endif %}</span><div><a href="{% url 'reviews:edit' review.code %}#{{ i.anchor }}">{{ i.label }}</a><div class="detail">{{ i.detail }}</div></div></li>{% endfor %}
+        </ul>
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="card">
+      <div class="card-head"><h3>Next week's outcomes</h3><a href="{% url 'reviews:commitments' %}">Tracker →</a></div>
+      <div class="card-body">
+        {% for c in upcoming %}
+          <div class="commit-item"><span class="n">{{ c.position }}</span><div><a href="{% url 'reviews:commitment_detail' c.pk %}">{{ c.description }}</a><div class="muted">Due {{ c.due_date|date:"j M" }} · <span class="badge badge-{{ c.status }}">{{ c.get_status_display }}</span></div></div></div>
+        {% empty %}<p class="muted">No outcomes defined yet{% if review %} — complete Question 10{% endif %}.</p>{% endfor %}
+        {% if upcoming_source %}<p class="muted small">From the {{ upcoming_source.period.label }} report.</p>{% endif %}
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-head"><h3>Overdue from earlier weeks</h3>{% if outstanding_total %}<span class="badge badge-overdue">{{ outstanding_total }}</span>{% endif %}</div>
+      <div class="card-body">
+        {% for c in outstanding %}
+          <div class="mini-item"><a href="{% url 'reviews:commitment_detail' c.pk %}">{{ c.description }}</a><div class="muted">Due {{ c.due_date|date:"j M" }} · <span class="badge badge-{{ c.status }}">{{ c.get_status_display }}</span></div></div>
+        {% empty %}<p class="muted">Nothing overdue.</p>{% endfor %}
+      </div>
+    </section>
+
+    <section class="card card-pad">
+      <div class="eyebrow">In progress</div>
+      <h3>{{ in_progress_label }}</h3>
+      <p class="muted small">Presented {{ in_progress.presentation_date|date:"l j M" }}. Figures become final after the period ends.</p>
+      {% if can_edit %}<a class="btn btn-sm" href="{% url 'reviews:new' %}">Prepare another report</a>{% endif %}
+    </section>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if chart_points %}
+{{ chart_payload|json_script:"chart-data" }}
+<script src="{% static 'vendor/chart.umd.js' %}"></script>
+<script src="{% static 'js/charts.js' %}"></script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-head"><div><h1>New Weekly Review</h1><div class="sub">Periods run Wednesday 00:00 – Tuesday 23:59:59 ({{ app_settings.business_timezone }}) and are presented the following Wednesday.</div></div></div>
+<div class="split">
+  <div class="card">
+    <div class="card-head"><h2>Choose a reporting period</h2></div>
+    <div class="table-wrap">
+    <table>
+      <thead><tr><th>Period</th><th>Presented</th><th>State</th><th></th></tr></thead>
+      <tbody>
+      {% for ch in choices %}
+        <tr>
+          <td><strong>{{ ch.label }}</strong>{% if ch.is_default %} <span class="badge badge-management">Due this Wednesday</span>{% endif %}</td>
+          <td>{{ ch.bounds.presentation_date|date:"D j M Y" }}</td>
+          <td>{{ ch.state }}{% if ch.state != "Completed" %} <span class="muted">(draft only)</span>{% endif %}</td>
+          <td>
+            {% if ch.exists %}<a class="btn btn-sm" href="{% url 'reviews:edit' ch.bounds.code %}">Open existing</a>
+            {% else %}<form method="post" class="inline-form">{% csrf_token %}<input type="hidden" name="period_start" value="{{ ch.bounds.start|date:'Y-m-d' }}"><button type="submit" class="btn btn-sm{% if ch.is_default %} btn-primary{% endif %}">Create</button></form>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+  <div class="card card-pad">
+    <h3>Another period</h3>
+    <p class="muted">Pick any date; the report is created for the Wednesday–Tuesday period that contains it. Only one report can exist per period.</p>
+    <form method="post">{% csrf_token %}
+      {% include "partials/form_errors.html" %}
+      <div class="field{% if form.period_start.errors %} has-error{% endif %}">
+        <label for="id_period_start">Date within the period</label>
+        <input type="date" id="id_period_start" name="period_start" value="{{ latest.start|date:'Y-m-d' }}" required>
+        {% if form.period_start.errors %}<ul class="errorlist">{% for e in form.period_start.errors %}<li>{{ e }}</li>{% endfor %}</ul>{% endif %}
+      </div>
+      <button type="submit" class="btn">Create or open</button>
+    </form>
+  </div>
+</div>
+{% endblock %}
