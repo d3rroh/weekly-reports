@@ -1,5 +1,6 @@
 """Render every page to catch template errors and empty-state handling."""
 from datetime import timedelta
+from unittest import mock
 
 from django.urls import reverse
 
@@ -73,7 +74,9 @@ class PopulatedPageTests(BaseTestCase):
         self.assertEqual(with_reports[-1]["values"]["missed_calls"], 10)
 
     def test_dashboard_with_data(self):
-        resp = self.client.get(reverse("dashboard"))
+        # Pin "today" to the week after self.review so it is the one the dashboard presents.
+        with mock.patch("apps.core.periods.local_today", return_value=P_START + timedelta(days=7)):
+            resp = self.client.get(reverse("dashboard"))
         self.assertContains(resp, "chart-data")
         self.assertContains(resp, "Preparation checklist")
 
