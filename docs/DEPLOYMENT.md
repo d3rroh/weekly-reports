@@ -166,13 +166,13 @@ The domain is proxied through Cloudflare in **Flexible** SSL mode: Cloudflare se
 
 Settings live in the `weekly-reports` ConfigMap at the top of the manifest. Password-reset email goes to the pod log (`kubectl -n weekly-reports logs deploy/web`) until you switch `EMAIL_BACKEND` to SMTP and fill in the `EMAIL_*` values.
 
-**Upgrading.** The manifest pins an image by commit (`sha-…` tag), so `kubectl rollout undo` always returns to a known build. To release a new commit, run a backup (below), then:
+**Upgrading.** Images are pinned by commit (`sha-…` tag), so `kubectl rollout undo` always returns to a known build. When the `KUBECONFIG_B64` repository secret is set (a base64-encoded kubeconfig: `base64 -w0 ~/.kube/config`), every push to `main` that passes CI deploys itself: the workflow runs a backup job from `cronjob/mysql-backup`, waits for it, then sets both the `migrate` and `web` images to the new `sha-…` tag and waits for the rollout. Without the secret, release by hand: run a backup (below), then
 
 ```bash
 kubectl -n weekly-reports set image deploy/web migrate=docker.io/d3rroh/weekly-reports:sha-<commit> web=docker.io/d3rroh/weekly-reports:sha-<commit>
 ```
 
-and update the tag in the manifest to match.
+The tag in the manifest only records a known-good build; CI does not update it. Before re-applying the manifest, set its tag to the one running (`kubectl -n weekly-reports get deploy/web -o jsonpath='{.spec.template.spec.containers[0].image}'`), or the apply rolls the app back.
 
 **Backups.** Dumps are written to the `backups` Longhorn volume. Longhorn replicates it across nodes, but it still lives in the same cluster as the database, so copy dumps off the cluster too (or configure a Longhorn backup target). To run one now, copy one out, and restore one:
 

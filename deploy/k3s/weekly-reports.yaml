@@ -301,6 +301,8 @@ spec:
   jobTemplate:
     spec:
       backoffLimit: 2
+      # Also clears the pre-deploy backup jobs CI creates from this template.
+      ttlSecondsAfterFinished: 604800
       template:
         spec:
           restartPolicy: Never

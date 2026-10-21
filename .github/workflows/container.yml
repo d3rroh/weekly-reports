@@ -58,6 +58,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       IMAGE_NAME: docker.io/${{ secrets.DOCKERHUB_USERNAME }}/weekly-reports
+      HAS_KUBECONFIG: ${{ secrets.KUBECONFIG_B64 != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -118,3 +119,19 @@ jobs:
           cache-from: type=gha
           provenance: true
           sbom: true
+
+      # The new image runs migrations on start, so back up the database first.
+      - name: Deploy to k3s
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && env.HAS_KUBECONFIG == 'true'
+        env:
+          KUBECONFIG_B64: ${{ secrets.KUBECONFIG_B64 }}
+        run: |
+          mkdir -p ~/.kube
+          echo "$KUBECONFIG_B64" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+          tag="sha-${GITHUB_SHA::7}"
+          kubectl -n weekly-reports create job --from=cronjob/mysql-backup "backup-$tag"
+          kubectl -n weekly-reports wait --for=condition=complete "job/backup-$tag" --timeout=300s
+          kubectl -n weekly-reports set image deployment/web \
+            migrate="$IMAGE_NAME:$tag" web="$IMAGE_NAME:$tag"
+          kubectl -n weekly-reports rollout status deployment/web --timeout=300s
