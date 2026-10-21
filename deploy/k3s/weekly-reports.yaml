@@ -1,0 +1,337 @@
+# Weekly Outcomes Review on k3s: https://reports.derroh.co.ke
+#
+# Contents: namespace, settings, MySQL 8.4 (StatefulSet), the app
+# (Deployment + Service), HTTPS ingress via ingress-nginx with
+# cert-manager, and a nightly database backup.
+#
+# Before applying, create the secret (it is not stored in git): copy
+# weekly-reports-secret.example.yaml to weekly-reports-secret.yaml, fill it in,
+# then:
+#
+#   kubectl create namespace weekly-reports
+#   kubectl apply -f deploy/k3s/weekly-reports-secret.yaml
+#   kubectl apply -f deploy/k3s/cluster-issuer.yaml -f deploy/k3s/weekly-reports.yaml
+# See docs/DEPLOYMENT.md ("Kubernetes (k3s)") for the full walkthrough.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: weekly-reports
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: weekly-reports
+  namespace: weekly-reports
+data:
+  DJANGO_DEBUG: "false"
+  DJANGO_ALLOWED_HOSTS: reports.derroh.co.ke
+  DJANGO_CSRF_TRUSTED_ORIGINS: https://reports.derroh.co.ke
+
+  DB_ENGINE: mysql
+  DB_NAME: weekly_outcomes
+  DB_USER: weekly_outcomes_app
+  DB_HOST: mysql
+  DB_PORT: "3306"
+
+  DEFAULT_BUSINESS_TIMEZONE: Africa/Nairobi
+
+  # ingress-nginx terminates TLS and redirects HTTP to HTTPS (automatic when the
+  # Ingress has a tls: block, so no extra annotation is needed).
+  SECURE_COOKIES: "true"
+  SECURE_SSL_REDIRECT: "false"
+  USE_X_FORWARDED_PROTO: "true"
+  SECURE_HSTS_SECONDS: "31536000"
+
+  GUNICORN_WORKERS: "3"
+  # Only ingress-nginx can reach the pod, so trust its forwarded headers.
+  GUNICORN_FORWARDED_ALLOW_IPS: "*"
+
+  # Password-reset emails go to the pod log until SMTP is configured. To send
+  # real mail, switch to the SMTP backend, fill these in, and set
+  # EMAIL_HOST_PASSWORD in the secret.
+  EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend
+  EMAIL_HOST: smtp.example.com
+  EMAIL_PORT: "587"
+  EMAIL_HOST_USER: ""
+  EMAIL_USE_TLS: "true"
+  DEFAULT_FROM_EMAIL: weekly-review@derroh.co.ke
+---
+# ---------------------------------------------------------------- MySQL ----
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  namespace: weekly-reports
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: mysql
+  ports:
+    - name: mysql
+      port: 3306
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql
+  namespace: weekly-reports
+spec:
+  serviceName: mysql
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mysql
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.4
+          args:
+            - --character-set-server=utf8mb4
+            - --collation-server=utf8mb4_unicode_ci
+          env:
+            - name: MYSQL_DATABASE
+              valueFrom: {configMapKeyRef: {name: weekly-reports, key: DB_NAME}}
+            - name: MYSQL_USER
+              valueFrom: {configMapKeyRef: {name: weekly-reports, key: DB_USER}}
+            - name: MYSQL_PASSWORD
+              valueFrom: {secretKeyRef: {name: weekly-reports, key: DB_PASSWORD}}
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom: {secretKeyRef: {name: weekly-reports, key: MYSQL_ROOT_PASSWORD}}
+          ports:
+            - name: mysql
+              containerPort: 3306
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", 'mysqladmin ping -h 127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD"']
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", 'mysqladmin ping -h 127.0.0.1 -uroot -p"$MYSQL_ROOT_PASSWORD"']
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            timeoutSeconds: 5
+          resources:
+            requests: {cpu: 100m, memory: 512Mi}
+            limits: {memory: 1Gi}
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: longhorn
+        resources:
+          requests:
+            storage: 10Gi
+---
+# ------------------------------------------------------------------ App ----
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: weekly-reports
+spec:
+  # One replica: migrations run in the init container, and two pods starting
+  # together would race on them. Rolling updates still give zero downtime.
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: {maxSurge: 1, maxUnavailable: 0}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: web
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile: {type: RuntimeDefault}
+      initContainers:
+        - name: migrate
+          image: docker.io/d3rroh/weekly-reports:sha-87c39cc
+          # Waits up to ~5 minutes for MySQL on first install.
+          command:
+            - sh
+            - -c
+            - |
+              for i in $(seq 1 60); do
+                python manage.py migrate --noinput && exec python manage.py createcachetable
+                echo "Database not ready, retrying in 5s ($i/60)"; sleep 5
+              done
+              exit 1
+          envFrom: &env
+            - configMapRef: {name: weekly-reports}
+          env:
+            - name: DJANGO_SECRET_KEY
+              valueFrom: {secretKeyRef: {name: weekly-reports, key: DJANGO_SECRET_KEY}}
+            - name: DB_PASSWORD
+              valueFrom: {secretKeyRef: {name: weekly-reports, key: DB_PASSWORD}}
+            - name: EMAIL_HOST_PASSWORD
+              valueFrom: {secretKeyRef: {name: weekly-reports, key: EMAIL_HOST_PASSWORD, optional: true}}
+          securityContext: &containerSecurity
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: ["ALL"]}
+          volumeMounts: &tmp
+            - name: tmp
+              mountPath: /tmp
+      containers:
+        - name: web
+          image: docker.io/d3rroh/weekly-reports:sha-87c39cc
+          envFrom: *env
+          env:
+            - name: RUN_MIGRATIONS
+              value: "false"
+            # Gunicorn's control socket lives under $HOME; /app is read-only.
+            - name: HOME
+              value: /tmp
+            - name: DJANGO_SECRET_KEY
+              valueFrom: {secretKeyRef: {name: weekly-reports, key: DJANGO_SECRET_KEY}}
+            - name: DB_PASSWORD
+              valueFrom: {secretKeyRef: {name: weekly-reports, key: DB_PASSWORD}}
+            - name: EMAIL_HOST_PASSWORD
+              valueFrom: {secretKeyRef: {name: weekly-reports, key: EMAIL_HOST_PASSWORD, optional: true}}
+          ports:
+            - name: http
+              containerPort: 8000
+          # Django rejects hosts outside DJANGO_ALLOWED_HOSTS, so probes send the real one.
+          readinessProbe:
+            httpGet:
+              path: /accounts/login/
+              port: http
+              httpHeaders: [{name: Host, value: reports.derroh.co.ke}]
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /accounts/login/
+              port: http
+              httpHeaders: [{name: Host, value: reports.derroh.co.ke}]
+            initialDelaySeconds: 20
+            periodSeconds: 30
+            timeoutSeconds: 10
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {memory: 768Mi}
+          securityContext: *containerSecurity
+          volumeMounts: *tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: weekly-reports
+spec:
+  selector:
+    app.kubernetes.io/name: web
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+# -------------------------------------------------------------- Ingress ----
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web
+  namespace: weekly-reports
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # Cloudflare is in Flexible mode (HTTP to the origin) and does the HTTPS
+    # redirect at the edge; redirecting here too causes an infinite 308 loop.
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [reports.derroh.co.ke]
+      secretName: reports-derroh-co-ke-tls
+  rules:
+    - host: reports.derroh.co.ke
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port: {name: http}
+---
+# -------------------------------------------------------------- Backups ----
+# Nightly mysqldump to a Longhorn volume, kept for 14 days. It shares the
+# cluster with the database, so copy dumps off the cluster as well.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backups
+  namespace: weekly-reports
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: mysql-backup
+  namespace: weekly-reports
+spec:
+  schedule: "15 2 * * *"
+  timeZone: Africa/Nairobi
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: backup
+              image: mysql:8.4
+              command:
+                - bash
+                - -c
+                - |
+                  set -euo pipefail
+                  out="/backups/${DB_NAME}-$(date +%Y%m%d-%H%M%S).sql.gz"
+                  MYSQL_PWD="$DB_PASSWORD" mysqldump -h "$DB_HOST" -u "$DB_USER" \
+                    --single-transaction --routines --triggers --no-tablespaces \
+                    --default-character-set=utf8mb4 "$DB_NAME" | gzip -9 > "$out"
+                  gzip -t "$out"
+                  # zgrep, not zcat | grep -q: with pipefail, grep -q exiting early
+                  # SIGPIPEs zcat and fails the check once the dump outgrows a pipe buffer.
+                  zgrep -q 'CREATE TABLE `reviews_weeklyreview`' "$out" \
+                    || { echo "Backup verification failed" >&2; exit 1; }
+                  find /backups -name "${DB_NAME}-*.sql.gz" -mtime +14 -delete
+                  echo "Backup written: $out"
+              envFrom:
+                - configMapRef: {name: weekly-reports}
+              env:
+                - name: DB_PASSWORD
+                  valueFrom: {secretKeyRef: {name: weekly-reports, key: DB_PASSWORD}}
+              volumeMounts:
+                - name: backups
+                  mountPath: /backups
+          volumes:
+            - name: backups
+              persistentVolumeClaim:
+                claimName: backups

@@ -107,9 +107,9 @@ The `Dockerfile` builds a production image: Python 3.12 slim, dependencies compi
 
 1. **Test**: runs `manage.py check`, a missing-migrations check and the full test suite against a MySQL 8.4 service container.
 2. **Build**: builds the image (cached between runs) and smoke-tests it: the container must start, apply migrations and serve the sign-in page and stylesheet.
-3. **Publish** (not on pull requests): pushes to the GitHub Container Registry as `ghcr.io/<owner>/<repo>`, tagged with the branch name, short commit SHA, `latest` for `main`, and `1.4.0` / `1.4` for version tags. It includes provenance and an SBOM.
+3. **Publish** (not on pull requests): pushes to Docker Hub as `docker.io/<DOCKERHUB_USERNAME>/weekly-reports`, tagged with the branch name, short commit SHA (`sha-1a2b3c4`), `latest` for `main`, and `1.4.0` / `1.4` for version tags. It includes provenance and an SBOM.
 
-No secrets need configuring; the workflow uses the built-in `GITHUB_TOKEN`. New GHCR packages are private. To pull from a server, run `docker login ghcr.io` with a personal access token that has `read:packages`, or make the package public in the repository's package settings.
+The workflow needs two repository secrets: `DOCKERHUB_USERNAME`, and `DOCKERHUB_TOKEN` (a Docker Hub access token with Read & Write scope).
 
 ### Running the image
 
@@ -120,7 +120,7 @@ docker run -d --name weekly-outcomes --restart unless-stopped \
   --env-file /etc/weekly-outcomes.env \
   -e GUNICORN_FORWARDED_ALLOW_IPS='*' \
   -p 127.0.0.1:8010:8000 \
-  ghcr.io/<owner>/<repo>:latest
+  docker.io/d3rroh/weekly-reports:latest
 ```
 
 Keep Nginx (step 5) in front for TLS. It already proxies to `127.0.0.1:8010`. `GUNICORN_FORWARDED_ALLOW_IPS='*'` is safe here only because the port is bound to localhost, so Nginx is the only client. Optional: `GUNICORN_WORKERS` (default: up to 4).
@@ -134,6 +134,55 @@ docker exec -it weekly-outcomes python manage.py createsuperuser
 Backups work as before. `scripts/backup.sh` runs on the host against MySQL, and the container holds no state.
 
 To upgrade, back up, then `docker pull` the new tag and recreate the container. Migrations run on start.
+
+## Kubernetes (k3s)
+
+`deploy/k3s/weekly-reports.yaml` runs the site at `https://reports.derroh.co.ke` in the `weekly-reports` namespace: MySQL 8.4 on a 10 GiB Longhorn volume (storage class `longhorn`), the app behind ingress-nginx, a Let's Encrypt certificate from cert-manager, and a nightly `mysqldump` at 02:15 Nairobi time kept for 14 days. Migrations run in an init container before each new app pod starts. The app pod runs as uid 10001 on a read-only filesystem.
+
+The domain is proxied through Cloudflare in **Flexible** SSL mode: Cloudflare serves HTTPS to visitors, redirects HTTP to HTTPS at the edge, and talks plain HTTP to the cluster. For that reason the Ingress sets `nginx.ingress.kubernetes.io/ssl-redirect: "false"` and Django has `SECURE_SSL_REDIRECT: "false"`. Do not turn either redirect on while Cloudflare is in Flexible mode, or every request loops with a 308. If you move Cloudflare to Full (strict), the origin certificate is used and both can be turned back on.
+
+1. Install ingress-nginx if the cluster doesn't have it. Add a proxied (orange cloud) Cloudflare `A` record for `reports.derroh.co.ke` pointing at the node, and make sure ports 80 and 443 are open (Let's Encrypt validates over port 80).
+2. Install cert-manager (once per cluster) and the issuer:
+   ```bash
+   kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.18.2/cert-manager.yaml
+   kubectl -n cert-manager rollout status deploy/cert-manager-webhook
+   kubectl apply -f deploy/k3s/cluster-issuer.yaml
+   ```
+3. Create the namespace and secret. Copy the template to `weekly-reports-secret.yaml`, which is git-ignored, and fill in the values (the template lists the commands that generate them):
+   ```bash
+   kubectl create namespace weekly-reports
+   cp deploy/k3s/weekly-reports-secret.example.yaml deploy/k3s/weekly-reports-secret.yaml
+   $EDITOR deploy/k3s/weekly-reports-secret.yaml
+   kubectl apply -f deploy/k3s/weekly-reports-secret.yaml
+   ```
+   MySQL reads the passwords only when it first creates its data volume. Changing them in the secret later does not change them in the database.
+4. Deploy and create the first administrator:
+   ```bash
+   kubectl apply -f deploy/k3s/weekly-reports.yaml
+   kubectl -n weekly-reports rollout status deploy/web
+   kubectl -n weekly-reports exec -it deploy/web -- python manage.py createsuperuser
+   kubectl -n weekly-reports get certificate        # READY becomes True within a minute or two
+   ```
+
+Settings live in the `weekly-reports` ConfigMap at the top of the manifest. Password-reset email goes to the pod log (`kubectl -n weekly-reports logs deploy/web`) until you switch `EMAIL_BACKEND` to SMTP and fill in the `EMAIL_*` values.
+
+**Upgrading.** The manifest pins an image by commit (`sha-…` tag), so `kubectl rollout undo` always returns to a known build. To release a new commit, run a backup (below), then:
+
+```bash
+kubectl -n weekly-reports set image deploy/web migrate=docker.io/d3rroh/weekly-reports:sha-<commit> web=docker.io/d3rroh/weekly-reports:sha-<commit>
+```
+
+and update the tag in the manifest to match.
+
+**Backups.** Dumps are written to the `backups` Longhorn volume. Longhorn replicates it across nodes, but it still lives in the same cluster as the database, so copy dumps off the cluster too (or configure a Longhorn backup target). To run one now, copy one out, and restore one:
+
+```bash
+kubectl -n weekly-reports create job --from=cronjob/mysql-backup backup-manual
+kubectl -n weekly-reports run backup-shell --rm -i --restart=Never --image=busybox:1.36 \
+  --overrides='{"spec":{"volumes":[{"name":"b","persistentVolumeClaim":{"claimName":"backups"}}],"containers":[{"name":"backup-shell","image":"busybox:1.36","command":["sh","-c","ls -t /b/*.sql.gz | head -1 | xargs cat"],"volumeMounts":[{"name":"b","mountPath":"/b"}]}]}}' \
+  > latest-backup.sql.gz
+kubectl -n weekly-reports exec -i statefulset/mysql -- sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" weekly_outcomes' < <(zcat weekly_outcomes-YYYYMMDD-HHMMSS.sql.gz)
+```
 
 ## Upgrading
 
