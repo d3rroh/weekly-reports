@@ -42,7 +42,7 @@
 
 {% if review %}
   {% if not completeness.is_final %}<div class="notice">Figures for this period are {% if not completeness.metrics_complete %}incomplete — not every metric has been entered{% else %}not final — the period has not ended{% endif %}. Do not present them as final results.</div>{% endif %}
-  <div class="grid grid-4">
+  <div class="grid grid-4 metric-strip">
     {% for row in metric_rows %}{% include "partials/metric_card.html" with c=row.c spark=row.spark %}{% endfor %}
   </div>
 {% else %}
