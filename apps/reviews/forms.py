@@ -35,8 +35,9 @@ class MetricsForm(forms.Form):
         label="SLA compliance (%)", min_value=0, max_value=100, max_digits=5, decimal_places=2, required=False,
         help_text="Percentage, 0–100.",
     )
-    missed_calls = forms.IntegerField(
-        label="Total missed calls", min_value=0, required=False, help_text="Whole number.",
+    missed_calls = forms.DecimalField(
+        label="Missed calls (%)", min_value=0, max_value=100, max_digits=5, decimal_places=2, required=False,
+        help_text="Percentage, 0–100.",
     )
     csat_pct = forms.DecimalField(
         label="CSAT (%)", min_value=0, max_value=100, max_digits=5, decimal_places=2, required=False,
@@ -48,12 +49,7 @@ class MetricsForm(forms.Form):
             kwargs.setdefault("initial", {name: getattr(instance, name) for name in self.base_fields})
         super().__init__(*args, **kwargs)
         for name, field in self.fields.items():
-            field.widget.attrs.update({"inputmode": "decimal" if name != "missed_calls" else "numeric",
-                                       "autocomplete": "off"})
-            if name == "missed_calls":
-                field.widget.attrs["step"] = "1"
-            else:
-                field.widget.attrs["step"] = "0.01"
+            field.widget.attrs.update({"inputmode": "decimal", "autocomplete": "off", "step": "0.01"})
 
 
 class ReviewMetaForm(forms.Form):

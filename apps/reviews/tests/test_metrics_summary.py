@@ -26,9 +26,9 @@ class MetricsSummaryCommandTests(TestCase):
 
     def test_compares_with_previous_week(self):
         self.review(date(2026, 10, 7), avg_response_minutes=Decimal("15"), sla_compliance_pct=Decimal("90"),
-                    missed_calls=40, csat_pct=Decimal("91"))
+                    missed_calls=Decimal("4"), csat_pct=Decimal("91"))
         current = self.review(date(2026, 10, 14), avg_response_minutes=Decimal("12.5"),
-                              sla_compliance_pct=Decimal("94"), missed_calls=30, csat_pct=Decimal("88.5"))
+                              sla_compliance_pct=Decimal("94"), missed_calls=Decimal("3.5"), csat_pct=Decimal("88.5"))
         ReviewResponse.objects.create(review=current, question=2, answer={"interpretation": "Rota change helped."})
 
         out = self.run_command("--period", "WR-2026-10-14")
@@ -36,7 +36,7 @@ class MetricsSummaryCommandTests(TestCase):
         self.assertIn("**WR-2026-10-07** (7 – 13 Oct 2026)", out)
         self.assertIn("| Average support response time (min) | 15 | 12.5 | -2.5 min (-16.7 %) | Improved |", out)
         self.assertIn("| SLA compliance (%) | 90 % | 94 % | +4 pp | Improved |", out)
-        self.assertIn("| Total missed calls | 40 | 30 | -10 (-25 %) | Improved |", out)
+        self.assertIn("| Missed calls (%) | 4 % | 3.5 % | -0.5 pp | Improved |", out)
         self.assertIn("| CSAT / customer satisfaction (%) | 91 % | 88.5 % | -2.5 pp | Deteriorated |", out)
         self.assertIn("Rota change helped.", out)
 
@@ -45,7 +45,7 @@ class MetricsSummaryCommandTests(TestCase):
 
         out = self.run_command("--period", "WR-2026-10-14")
 
-        self.assertIn("| Total missed calls | No previous data | 0 | No previous data | Not available |", out)
+        self.assertIn("| Missed calls (%) | No previous data | 0 % | No previous data | Not available |", out)
         self.assertIn("| SLA compliance (%) | No previous data | Not available | Not available | Not available |", out)
         self.assertIn("_Not yet entered._", out)
 
