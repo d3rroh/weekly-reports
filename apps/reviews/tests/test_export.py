@@ -75,6 +75,15 @@ class ExportTests(BaseTestCase):
         html = render_pdf_html(self.review, self.confidential)
         self.assertIn("INCOMPLETE", html)
 
+    def test_pdf_line_breaks_do_not_rely_on_pre_wrap(self):
+        # xhtml2pdf treats pre-wrap as pre, so long answers ran off the page.
+        self.review.executive_summary = "Line one\nLine two"
+        self.review.save()
+        html = render_pdf_html(self.review, self.confidential)
+        self.assertIn("Line one<br>Line two", html)
+        self.assertNotIn("pre-wrap", html)
+        self.assertNotIn("<header", html)  # xhtml2pdf draws no background on it, hiding the white cover text
+
     def test_export_is_audited(self):
         from apps.core.models import AuditEvent
         self.pdf_text()

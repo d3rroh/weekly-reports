@@ -14,4 +14,4 @@
   {% endwith %}{% endif %}{% endfor %}
   </tbody>
 </table>
-{% for row in comparisons %}{% if row.c.metric.key in keys %}{% for cm in row.comments %}<div class="mgmt-comment"><strong>{{ row.c.metric.short_label }}:</strong> <span class="pre">{{ cm.text }}</span> <span class="muted">— {{ cm.author.display_name }}</span></div>{% endfor %}{% endif %}{% endfor %}
+{% for row in comparisons %}{% if row.c.metric.key in keys %}{% for cm in row.comments %}<div class="mgmt-comment"><strong>{{ row.c.metric.short_label }}:</strong> <span class="pre">{{ cm.text|linebreaksbr }}</span> <span class="muted">— {{ cm.author.display_name }}</span></div>{% endfor %}{% endif %}{% endfor %}

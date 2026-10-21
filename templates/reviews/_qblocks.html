@@ -1,2 +1,2 @@
-{% for b in qd.blocks %}<div class="block-label">{{ b.label }}</div><div class="pre">{{ b.value }}</div>{% empty %}<p class="not-answered">Not answered.</p>{% endfor %}
-{% for cm in qd.comments %}<div class="mgmt-comment"><span class="pre">{{ cm.text }}</span> <span class="muted">— {{ cm.author.display_name }}</span></div>{% endfor %}
+{% for b in qd.blocks %}<div class="block-label">{{ b.label }}</div><div class="pre">{{ b.value|linebreaksbr }}</div>{% empty %}<p class="not-answered">Not answered.</p>{% endfor %}
+{% for cm in qd.comments %}<div class="mgmt-comment"><span class="pre">{{ cm.text|linebreaksbr }}</span> <span class="muted">— {{ cm.author.display_name }}</span></div>{% endfor %}

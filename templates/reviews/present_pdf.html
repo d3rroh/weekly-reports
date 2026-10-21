@@ -4,12 +4,12 @@
 @page { size: a4 portrait; margin: 1.6cm 1.5cm 1.8cm 1.5cm;
   @frame footer { -pdf-frame-content: pdf-footer; bottom: 0.8cm; margin-left: 1.5cm; margin-right: 1.5cm; height: 0.6cm; } }
 body { font-family: Helvetica, Arial, sans-serif; font-size: 9.5pt; color: #1a2030; line-height: 1.35; }
-header.cover { background-color: #0e1a2e; color: #dfe5f0; padding: 14px 16px 12px 16px; margin-bottom: 10px; }
-header.cover h1 { color: #ffffff; font-size: 20pt; margin: 4px 0 6px 0; }
-header.cover .eyebrow { color: #8fb0e9; font-size: 7.5pt; text-transform: uppercase; }
-header.cover .meta { font-size: 8.5pt; color: #9aa7bd; }
-header.cover .meta strong { color: #ffffff; }
-header.cover .notice { background-color: #fbf1df; }
+div.cover { background-color: #0e1a2e; color: #dfe5f0; padding: 14px 16px 12px 16px; margin-bottom: 10px; }
+div.cover h1 { color: #ffffff; font-size: 20pt; margin: 4px 0 6px 0; }
+div.cover .eyebrow { color: #8fb0e9; font-size: 7.5pt; text-transform: uppercase; }
+div.cover .meta { font-size: 8.5pt; color: #9aa7bd; }
+div.cover .meta strong { color: #ffffff; }
+div.cover .notice { background-color: #fbf1df; }
 table.glance { width: 100%; margin: 4px 0 6px 0; }
 table.glance td { width: 25%; border: 0.5px solid #cfcbc0; background-color: #faf9f6; padding: 6px 8px; vertical-align: top; }
 .g-label { font-size: 7pt; text-transform: uppercase; color: #646b78; }
@@ -23,7 +23,8 @@ h3 { font-size: 9.5pt; margin: 8px 0 3px; -pdf-keep-with-next: true; }
 .muted { color: #5c6575; }
 .small { font-size: 8pt; }
 .block-label { font-size: 7.5pt; text-transform: uppercase; color: #5c6575; margin-top: 4px; }
-.pre { white-space: pre-wrap; }
+.pre { white-space: normal; }
+div.cover .meta span { padding-right: 12px; }
 .not-answered { color: #5c6575; font-style: italic; }
 .notice { border: 1px solid #b45309; color: #6b3f05; padding: 4px 6px; margin-top: 6px; }
 .mgmt-comment { border-left: 2px solid #2856c7; padding: 2px 6px; margin: 4px 0; background-color: #eef3fd; }
