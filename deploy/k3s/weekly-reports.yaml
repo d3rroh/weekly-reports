@@ -161,7 +161,7 @@ spec:
         seccompProfile: {type: RuntimeDefault}
       initContainers:
         - name: migrate
-          image: docker.io/d3rroh/weekly-reports:sha-466c517
+          image: docker.io/d3rroh/weekly-reports:sha-80ff5f4
           # Waits up to ~5 minutes for MySQL on first install.
           command:
             - sh
@@ -190,7 +190,7 @@ spec:
               mountPath: /tmp
       containers:
         - name: web
-          image: docker.io/d3rroh/weekly-reports:sha-466c517
+          image: docker.io/d3rroh/weekly-reports:sha-80ff5f4
           envFrom: *env
           env:
             - name: RUN_MIGRATIONS
