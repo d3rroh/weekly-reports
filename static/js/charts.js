@@ -12,6 +12,7 @@
   var muted = css.getPropertyValue("--muted").trim() || "#5c6575";
   var grid = css.getPropertyValue("--border").trim() || "#dfe3ea";
   var navy = css.getPropertyValue("--navy-500").trim() || "#4a5d7c";
+  var soft = css.getPropertyValue("--accent-soft").trim() || "rgba(31,66,128,.28)";
 
   Chart.defaults.font.family = css.getPropertyValue("--font");
   Chart.defaults.font.size = 11;
@@ -66,7 +67,7 @@
           spanGaps: false,
           borderColor: accent,
           backgroundColor: values.map(function (_, i) {
-            return i === marks.current ? accent : (i === marks.previous ? navy : "rgba(40,86,199,.35)");
+            return i === marks.current ? accent : (i === marks.previous ? navy : soft);
           }),
           pointBackgroundColor: values.map(function (_, i) {
             return i === marks.current ? accent : "#fff";
