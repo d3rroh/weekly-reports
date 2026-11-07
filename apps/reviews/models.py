@@ -153,7 +153,10 @@ class WeeklyMetrics(models.Model):
         "SLA compliance (%)", max_digits=5, decimal_places=2, null=True, blank=True,
         validators=[MinValueValidator(0), MaxValueValidator(100)],
     )
-    missed_calls = models.PositiveIntegerField("Total missed calls", null=True, blank=True)
+    missed_calls = models.DecimalField(
+        "Missed calls (%)", max_digits=5, decimal_places=2, null=True, blank=True,
+        validators=[MinValueValidator(0), MaxValueValidator(100)],
+    )
     csat_pct = models.DecimalField(
         "CSAT (%)", max_digits=5, decimal_places=2, null=True, blank=True,
         validators=[MinValueValidator(0), MaxValueValidator(100)],
@@ -167,6 +170,8 @@ class WeeklyMetrics(models.Model):
                                    name="metrics_response_non_negative"),
             models.CheckConstraint(condition=Q(sla_compliance_pct__gte=0, sla_compliance_pct__lte=100)
                                    | Q(sla_compliance_pct__isnull=True), name="metrics_sla_range"),
+            models.CheckConstraint(condition=Q(missed_calls__gte=0, missed_calls__lte=100)
+                                   | Q(missed_calls__isnull=True), name="metrics_missed_calls_range"),
             models.CheckConstraint(condition=Q(csat_pct__gte=0, csat_pct__lte=100) | Q(csat_pct__isnull=True),
                                    name="metrics_csat_range"),
         ]

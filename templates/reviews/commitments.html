@@ -2,7 +2,7 @@
 {% load wor_format %}
 {% block content %}
 <div class="page-head"><div><h1>Commitments Tracker</h1><div class="sub">The three outcomes defined in Question 10 of each report, with status history.</div></div></div>
-<div class="grid grid-4 tracker-stats">
+<div class="grid grid-4 metric-strip tracker-stats">
   {% for v, l in statuses %}<a class="card metric" href="?status={{ v }}"><div class="metric-label">{{ l }}</div><div class="metric-value">{{ counts|get_item:v }}</div></a>{% endfor %}
 </div>
 <div class="filters btn-row">

@@ -31,9 +31,10 @@ class ComparisonTests(SimpleTestCase):
         self.assertEqual(c.absolute_change, Decimal("-2.5"))
         self.assertEqual(c.trend, Trend.DETERIORATED)
 
-    def test_missed_calls(self):
-        c = compare(MC, 30, 40)
-        self.assertEqual(c.absolute_change, Decimal("-10"))
+    def test_missed_calls_drop_is_improvement_in_points(self):
+        c = compare(MC, Decimal("3"), Decimal("4"))
+        self.assertEqual(c.absolute_change, Decimal("-1"))
+        self.assertEqual(c.change_unit, "pp")
         self.assertEqual(c.relative_change_pct, Decimal("-25.0"))
         self.assertEqual(c.trend, Trend.IMPROVED)
 
@@ -89,8 +90,11 @@ class MetricValidationTests(SimpleTestCase):
         self.assertFalse(f.is_valid())
         self.assertEqual(set(f.errors), {"avg_response_minutes", "sla_compliance_pct", "missed_calls", "csat_pct"})
 
-    def test_missed_calls_must_be_whole_number(self):
+    def test_missed_calls_is_a_percentage(self):
         f = self.form(missed_calls="2.5")
+        self.assertTrue(f.is_valid(), f.errors)
+        self.assertEqual(f.cleaned_data["missed_calls"], Decimal("2.5"))
+        f = self.form(missed_calls="100.5")
         self.assertFalse(f.is_valid())
         self.assertIn("missed_calls", f.errors)
 

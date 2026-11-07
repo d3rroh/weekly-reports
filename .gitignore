@@ -6,3 +6,4 @@ staticfiles/
 db.sqlite3
 backups/
 *.log
+deploy/k3s/weekly-reports-secret.yaml

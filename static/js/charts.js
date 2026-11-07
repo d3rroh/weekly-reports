@@ -8,10 +8,11 @@
   var metrics = payload.metrics || [];
 
   var css = getComputedStyle(document.documentElement);
-  var accent = css.getPropertyValue("--accent").trim() || "#2856c7";
-  var muted = css.getPropertyValue("--muted").trim() || "#5c6575";
-  var grid = css.getPropertyValue("--border").trim() || "#dfe3ea";
-  var navy = css.getPropertyValue("--navy-500").trim() || "#4a5d7c";
+  var accent = css.getPropertyValue("--accent").trim() || "#1b5a6d";
+  var muted = css.getPropertyValue("--muted").trim() || "#5a7077";
+  var grid = css.getPropertyValue("--border").trim() || "#dbe8ec";
+  var navy = css.getPropertyValue("--navy-500").trim() || "#4a7a86";
+  var soft = css.getPropertyValue("--accent-soft").trim() || "rgba(27,90,109,.28)";
 
   Chart.defaults.font.family = css.getPropertyValue("--font");
   Chart.defaults.font.size = 11;
@@ -66,7 +67,7 @@
           spanGaps: false,
           borderColor: accent,
           backgroundColor: values.map(function (_, i) {
-            return i === marks.current ? accent : (i === marks.previous ? navy : "rgba(40,86,199,.35)");
+            return i === marks.current ? accent : (i === marks.previous ? navy : soft);
           }),
           pointBackgroundColor: values.map(function (_, i) {
             return i === marks.current ? accent : "#fff";

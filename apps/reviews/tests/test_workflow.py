@@ -147,7 +147,7 @@ class StatusWorkflowTests(BaseTestCase):
         self.assertEqual(self.review.status, "submitted")
         self.assertFalse(self.review.submitted_incomplete)
         rev = ReportRevision.objects.get(review=self.review)
-        self.assertEqual(rev.snapshot["metrics"]["missed_calls"], "10")
+        self.assertEqual(rev.snapshot["metrics"]["missed_calls"], "10.00")
         self.assertEqual(len(rev.snapshot["responses"]), 12)
 
     def test_submitted_report_is_read_only(self):

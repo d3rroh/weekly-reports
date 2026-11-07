@@ -92,21 +92,19 @@ QUESTIONS = [
     Question(
         7, "leadership", "Who on your team is underperforming, and why?",
         fields=(
-            SubField("observations", "Observations",
-                     help="Keep entries factual. Write 'No concerns this week' if none."),
-            SubField("performance_gaps", "Performance gaps", required=False),
-            SubField("evidence", "Evidence", required=False),
-            SubField("support_actions", "Proposed support or corrective actions", required=False),
+            SubField("observations", "Your answer", rows=8,
+                     help="Name each person, the performance gap, the evidence and the support or "
+                          "corrective action you propose. Keep entries factual. "
+                          "Write 'No concerns this week' if none."),
         ),
         confidential=True, comment_category="leadership",
     ),
     Question(
         8, "leadership", "Who is improving or ready for more responsibility?",
         fields=(
-            SubField("achievements", "Achievements"),
-            SubField("evidence", "Evidence of improvement", required=False),
-            SubField("readiness", "Readiness for more responsibility", required=False),
-            SubField("development", "Development opportunities", required=False),
+            SubField("achievements", "Your answer", rows=8,
+                     help="Name each person, what they achieved, the evidence of improvement, how ready "
+                          "they are for more responsibility and the development opportunities you see."),
         ),
         confidential=True, comment_category="leadership",
     ),

@@ -24,8 +24,7 @@ METRICS = [
     MetricDef("response_time", "avg_response_minutes", "Average support response time", "Response time",
               "min", False, False, "response_time"),
     MetricDef("sla", "sla_compliance_pct", "SLA compliance", "SLA compliance", "%", True, True, "sla"),
-    MetricDef("missed_calls", "missed_calls", "Total missed calls", "Missed calls", "calls", False, False,
-              "missed_calls"),
+    MetricDef("missed_calls", "missed_calls", "Missed calls", "Missed calls", "%", False, True, "missed_calls"),
     MetricDef("csat", "csat_pct", "CSAT / customer satisfaction", "CSAT", "%", True, True, "csat"),
 ]
 METRICS_BY_KEY = {m.key: m for m in METRICS}
