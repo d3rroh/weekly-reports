@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% block body_class %}auth-body{% endblock %}
 {% block body %}
 <div class="auth-wrap">
   <section class="auth-brand" aria-hidden="true">
@@ -6,14 +7,37 @@
       <span class="brand-mark"><svg viewBox="0 0 24 24"><path d="M4 17l5-6 4 4 7-9"/></svg></span>
       <div><div class="brand-name">{{ APP_NAME }}</div>{% if app_settings.organisation_name %}<div class="brand-org">{{ app_settings.organisation_name }}</div>{% endif %}</div>
     </div>
-    <blockquote>Prepared every week. <span>Presented every Wednesday.</span></blockquote>
-    <p class="foot">Support performance, customer satisfaction and next-week commitments, recorded by hand and compared against the week before.</p>
+
+    <div class="auth-hero">
+      <blockquote>Prepared every week. <span>Presented every Wednesday.</span></blockquote>
+      <p class="foot">Support performance, customer satisfaction and next-week commitments, recorded by hand and compared against the week before.</p>
+    </div>
+
+    <div class="auth-scene">
+      <div class="scene-stack">
+        <div class="tile tile-ready">
+          <svg class="ring" viewBox="0 0 80 80"><circle class="track" cx="40" cy="40" r="32"/><circle class="value" cx="40" cy="40" r="32" stroke-dasharray="201" stroke-dashoffset="0"/><text x="40" y="46" text-anchor="middle">100%</text></svg>
+          <div><span class="eyebrow">Wednesday presentation</span><strong>Report ready</strong><small>All sections complete</small></div>
+        </div>
+        <div class="tile tile-metric">
+          <span class="eyebrow">Customer satisfaction</span>
+          <strong>Week on week</strong>
+          <svg class="tile-spark" viewBox="0 0 120 32" preserveAspectRatio="none"><path d="M2 26 L22 22 L42 24 L62 15 L82 17 L102 9 L118 6"/></svg>
+        </div>
+        <div class="tile tile-list">
+          <span class="eyebrow">Outcomes</span>
+          <ol><li><i></i></li><li><i></i></li><li><i></i></li></ol>
+        </div>
+      </div>
+    </div>
   </section>
+
   <section class="auth-side">
     <div class="auth-card">
       {% if messages %}<ul class="messages">{% for m in messages %}<li class="msg-{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
       {% block auth %}{% endblock %}
     </div>
+    <p class="auth-legal">{% if app_settings.organisation_name %}{{ app_settings.organisation_name }} · {% endif %}Internal reporting · access by invitation</p>
   </section>
 </div>
 {% endblock %}
